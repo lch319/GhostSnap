@@ -1,6 +1,8 @@
 # 窗口吸附增强工具 (GhostSnap)
 
 **一句话介绍：** 把窗口拖拽变成磁铁吸附，靠近边缘自动对齐。
+<img width="1252" height="768" alt="功能演示" src="https://github.com/user-attachments/assets/c4029ab2-5631-4ddc-b658-bb838dbfbdbf" />
+<img width="1250" height="816" alt="PixPin exe_2026-06-16_21-40-24" src="https://github.com/user-attachments/assets/615ec393-bcc3-4548-9aa8-c9d7ae3cb7d5" />
 
 ---
 
@@ -31,11 +33,11 @@
 ## ❓ 常见问题  
 - **Q: 个别软件（如任务栏、截图工具）我不想让它被吸附？**
 
-  A: 在 GhostSnap.ini 的 Blacklist 字段中添加对应窗口规则（支持标题/类名/进程名），一行一个。已内置常见工具的黑名单。
+  A: 在 设置中心 的 黑名单中添加对应窗口规则（支持标题/类名/进程名），一行一个。已内置常见工具的黑名单。
 
 - **Q: 幽灵窗口太显眼？**
 
-  A: 可修改 GhostOpacity（透明度，0-255）或设置 EnableGhostWindow=false 关闭。
+  A: 在 设置中心 的 外观特效 中 可修改（透明度，0-255）或设置 关闭幽灵窗口特效。
 
 - **Q: 联动移动没反应？**
 
