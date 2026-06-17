@@ -1,5 +1,5 @@
 ﻿; 编译exe文件信息及版本号设置
-当前工具版本:="1.0.0"                  ;设置版本号
+当前工具版本:="1.0.1"                  ;设置版本号
 ;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"  ;判断位数
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%  ;读取版本号以编译
 ;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ; 指定托盘图标文件
@@ -33,7 +33,7 @@ SetTitleMatchMode, 2
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-global CurrentToolVersion := "1.0.0"
+global CurrentToolVersion := "1.0.1"
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ; 配置文件路径，默认放在脚本同目录下
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ; 触发吸附的距离（像素）
@@ -59,6 +59,7 @@ global ChainModKey := Var_Read("ChainModKey","Ctrl","基础配置",SettingsDir,"
 
 defaultBlacklist := "FloatingBall悬浮球 ahk_class AutoHotkeyGUI`nahk_exe PixPin.exe`nahk_exe Snipaste.exe`nahk_class Progman`nahk_class WorkerW`nahk_class Shell_TrayWnd`nahk_class TopLevelWindowForOverflow`nahk_class Shell_SecondaryTrayWnd"
 global Blacklist := Var_Read("Blacklist", defaultBlacklist, "基础配置", SettingsDir, "否", "是")      ; 窗口黑名单 (原生 WinTitle 语法，换行隔开)
+global DragBlacklist := Var_Read("DragBlacklist", "", "基础配置", SettingsDir, "否", "是")      ; 任意位置拖拽黑名单
 
 global AdminLaunch := Var_Read("AdminLaunch","0","基础配置",SettingsDir,"否") ; 是否管理员运行
 global AutoRun := Var_Read("AutoRun","0","基础配置",SettingsDir,"否") ; 是否开机自启
@@ -91,6 +92,7 @@ Label_AutoRun(AutoRun)
 
 global CurrentDragModKey := DragModKey
 global CurrentDragDirectKey := DragDirectKey
+
 ; ==========================================
 ; 系统托盘菜单初始化
 ; ==========================================
@@ -229,7 +231,7 @@ OpenSettingsGui:
     Gui, Settings:Add, Checkbox, x30 y250 w380 h20 vGui_RequireKeyToSnap Checked%RequireKeyToSnap%, 反向模式：平时不吸附，按住上方按键才触发吸附
     Gui, Settings:Add, Text, x50 y275 w380 h40 cGray, 备注: 勾选此项后，按键逻辑将反转。适合平时不希望频繁触发吸附，仅在特定时刻才需要的用户。
 
-    ; --- 标签页 2: 外观特效 ---
+    ; --- 标签页 2: 外外观特效 ---
     Gui, Settings:Tab, 2
     Gui, Settings:Add, Checkbox, x30 y50 w300 h20 vGui_GhostWin Checked%EnableGhostWindow%, 启用幽灵窗口特效
 
@@ -260,7 +262,10 @@ OpenSettingsGui:
     ; --- 标签页 4: 黑名单 ---
     Gui, Settings:Tab, 4
     Gui, Settings:Add, Text, x25 y45 w400 h20, 窗口黑名单 (支持原生 WinTitle 语法，一行一个):
-    Gui, Settings:Add, Edit, x25 y70 w410 h270 vGui_Blacklist Multi WantReturn, %Blacklist%
+    Gui, Settings:Add, Edit, x25 y70 w410 h115 vGui_Blacklist Multi WantReturn, %Blacklist%
+    
+    Gui, Settings:Add, Text, x25 y195 w400 h20, 任意拖拽黑名单 (仅针对修饰键/直接键拖拽，一行一个):
+    Gui, Settings:Add, Edit, x25 y220 w410 h115 vGui_DragBlacklist Multi WantReturn, %DragBlacklist%
 
     ; --- 标签页 5: 系统与高级 [新增] ---
     Gui, Settings:Tab, 5
@@ -294,7 +299,7 @@ OpenSettingsGui:
     Gui, Settings:Add, Button, x220 y385 w80 h32 gApplyConfig, 应用
     Gui, Settings:Add, Button, x310 y385 w80 h32 gSettingsGuiClose, 取消
 
-    Gui, Settings:Show, w480 h435, GhostSnap_v%版本号% 设置中心
+    Gui, Settings:Show, w480 h435, GhostSnap_v%CurrentToolVersion% 设置中心
 return
 
 ChooseColorBtn:
@@ -329,6 +334,7 @@ ApplyConfig:
     Var_Set(Gui_Chaining, "1", "EnableChaining", "基础配置", SettingsDir)
     Var_Set(Gui_ChainModKey, "Ctrl", "ChainModKey", "基础配置", SettingsDir)
     Var_Set(Gui_Blacklist, defaultBlacklist, "Blacklist", "基础配置", SettingsDir)
+    Var_Set(Gui_DragBlacklist, "", "DragBlacklist", "基础配置", SettingsDir) ; [新增] 任意拖拽黑名单
 
     ; [新增] 写入系统级配置
     Var_Set(Gui_AdminLaunch, "0", "AdminLaunch", "基础配置", SettingsDir)
@@ -354,6 +360,7 @@ ApplyConfig:
     EnableChaining := Gui_Chaining
     ChainModKey := Gui_ChainModKey
     Blacklist := Gui_Blacklist
+    DragBlacklist := Gui_DragBlacklist
 
     ; [新增] 更新系统级变量
     AdminLaunch := Gui_AdminLaunch
@@ -423,6 +430,19 @@ HasOverlap(min1, max1, min2, max2, padding:=0) {
 
 IsBlacklisted(hwnd) {
     Loop, Parse, Blacklist, `n, `r
+    {
+        rule := Trim(A_LoopField)
+        if (rule = "")
+            continue
+        if WinExist(rule " ahk_id " hwnd)
+            return true
+    }
+    return false
+}
+
+; [新增] 任意位置拖拽专属黑名单检测
+IsDragBlacklisted(hwnd) {
+    Loop, Parse, DragBlacklist, `n, `r
     {
         rule := Trim(A_LoopField)
         if (rule = "")
@@ -567,7 +587,8 @@ StartManualDrag:
 
     if (!hoverHwnd or hoverHwnd = GhostHwnd)
         return
-    if IsBlacklisted(hoverHwnd)
+    ; [修改] 这里增加了自定义快捷拖拽的黑名单拦截验证
+    if IsBlacklisted(hoverHwnd) || IsDragBlacklisted(hoverHwnd)
         return
 
     WinGet, minMax, MinMax, ahk_id %hoverHwnd%
@@ -605,9 +626,14 @@ TrackMove:
     ; ========================================================
     togglePressed := (SnapToggleKey != "") ? GetKeyState(SnapToggleKey, "P") : false
 
-    ; 如果 RequireKeyToSnap 为 1 (反向模式)，则没按下时暂停吸附；
-    ; 如果 RequireKeyToSnap 为 0 (正向模式)，则按下时暂停吸附。
-    suspendSnapping := RequireKeyToSnap ? !togglePressed : togglePressed
+    ; 【修复】区分原生拖拽与快捷拖拽的反向模式响应规则
+    if (dragMode = "manual") {
+        ; 任意位置快捷拖拽时，无视反向模式 (RequireKeyToSnap)，强制保持默认吸附手感，按下 ToggleKey 时中断吸附
+        suspendSnapping := togglePressed
+    } else {
+        ; 原生系统标题栏拖拽时，遵从反向模式设定
+        suspendSnapping := RequireKeyToSnap ? !togglePressed : togglePressed
+    }
 
     if (suspendSnapping) {
         willSnap := false
