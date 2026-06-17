@@ -1,4 +1,26 @@
-﻿#NoEnv
+﻿; 编译exe文件信息及版本号设置
+当前工具版本:="1.0.0"                  ;设置版本号
+;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"  ;判断位数
+;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%  ;读取版本号以编译
+;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ; 指定托盘图标文件
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 160      ; 替换自带的'蓝色H'图标
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 206      ; 替换为 '绿色 S'
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 207      ; 替换自带的'红色H'图标
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 208      ; 替换为 '红色 S'
+;@Ahk2Exe-ExeName %A_ScriptDir%\GhostSnap%U_version%.exe  ; 打包后的exe文件路径
+;@Ahk2Exe-SetCompanyName 逍遥xiaoyao        ; 企业信息
+;@Ahk2Exe-SetCopyright 逍遥xiaoyao          ; 版权信息
+;@Ahk2Exe-SetDescription 把窗口拖拽变成磁铁吸附，靠近边缘自动对齐  ; 文件说明
+;@Ahk2Exe-SetFileVersion %U_version%        ; 文件版本
+;@Ahk2Exe-SetInternalName GhostSnap        ; 文件内部名
+;@Ahk2Exe-SetLanguage 0x0804            ; 区域语言
+;@Ahk2Exe-SetName GhostSnap          ; 名称
+;@Ahk2Exe-SetProductName GhostSnap        ; 产品名称
+;@Ahk2Exe-SetOrigFilename GhostSnap.exe      ; 原始文件名称
+;@Ahk2Exe-SetProductVersion %U_version%        ; 产品版本号
+;@Ahk2Exe-SetVersion %U_version%          ; 版本号
+
+#NoEnv
 #SingleInstance Force
 #Persistent
 SetBatchLines, -1
@@ -11,7 +33,7 @@ SetTitleMatchMode, 2
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-global 版本号 := "1.0.0"                ; 版本号仅供显示使用，不影响功能
+
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ; 配置文件路径，默认放在脚本同目录下
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ; 触发吸附的距离（像素）
@@ -254,7 +276,7 @@ OpenSettingsGui:
     Gui, Settings:Add, Text, x120 y75 w200 h20 c0078D7, GhostSnap
 
     Gui, Settings:Add, Text, x45 y110 w80 h20, 当前版本:
-    Gui, Settings:Add, Text, x120 y110 w200 h20, v%版本号%
+    Gui, Settings:Add, Text, x120 y110 w200 h20, v%当前工具版本%
 
     Gui, Settings:Add, Text, x45 y145 w80 h20, 软件作者:
     Gui, Settings:Add, Text, x120 y145 w200 h20, 逍遥
