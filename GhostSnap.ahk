@@ -33,7 +33,7 @@ SetTitleMatchMode, 2
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-
+global CurrentToolVersion := "1.0.0"
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ; 配置文件路径，默认放在脚本同目录下
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ; 触发吸附的距离（像素）
@@ -245,11 +245,11 @@ OpenSettingsGui:
     Gui, Settings:Tab, 3
     Gui, Settings:Add, Text, x30 y50 w140 h20, 任意位置拖拽修饰键:
     Gui, Settings:Add, Edit, x170 y48 w100 h20 vGui_DragModKey, %DragModKey%
-    Gui, Settings:Add, Text, x280 y50 w150 h20 cGray, (留空则禁用)
+    Gui, Settings:Add, Text, x280 y50 w150 h20 cGray, (如:LWin 留空则禁用)
 
     Gui, Settings:Add, Text, x30 y90 w140 h20, 任意位置拖拽直接键:
     Gui, Settings:Add, Edit, x170 y88 w100 h20 vGui_DragDirectKey, %DragDirectKey%
-    Gui, Settings:Add, Text, x280 y90 w150 h20 cGray, (如: XButton1)
+    Gui, Settings:Add, Text, x280 y90 w150 h20 cGray, (如: XButton1 MButton)
 
     Gui, Settings:Add, Checkbox, x30 y145 w300 h20 vGui_Chaining Checked%EnableChaining%, 启用窗口联动移动
 
@@ -276,7 +276,7 @@ OpenSettingsGui:
     Gui, Settings:Add, Text, x120 y75 w200 h20 c0078D7, GhostSnap
 
     Gui, Settings:Add, Text, x45 y110 w80 h20, 当前版本:
-    Gui, Settings:Add, Text, x120 y110 w200 h20, v%当前工具版本%
+    Gui, Settings:Add, Text, x120 y110 w200 h20, v%CurrentToolVersion%
 
     Gui, Settings:Add, Text, x45 y145 w80 h20, 软件作者:
     Gui, Settings:Add, Text, x120 y145 w200 h20, 逍遥
