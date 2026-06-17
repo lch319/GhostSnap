@@ -1,5 +1,5 @@
 ﻿; 编译exe文件信息及版本号设置
-当前工具版本:="1.0.1"                  ;设置版本号
+当前工具版本:="1.0.3"                  ;设置版本号
 ;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"  ;判断位数
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%  ;读取版本号以编译
 ;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ; 指定托盘图标文件
@@ -33,7 +33,7 @@ SetTitleMatchMode, 2
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-global CurrentToolVersion := "1.0.1"
+global CurrentToolVersion := "1.0.3"
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ; 配置文件路径，默认放在脚本同目录下
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ; 触发吸附的距离（像素）
@@ -59,7 +59,8 @@ global ChainModKey := Var_Read("ChainModKey","Ctrl","基础配置",SettingsDir,"
 
 defaultBlacklist := "FloatingBall悬浮球 ahk_class AutoHotkeyGUI`nahk_exe PixPin.exe`nahk_exe Snipaste.exe`nahk_class Progman`nahk_class WorkerW`nahk_class Shell_TrayWnd`nahk_class TopLevelWindowForOverflow`nahk_class Shell_SecondaryTrayWnd"
 global Blacklist := Var_Read("Blacklist", defaultBlacklist, "基础配置", SettingsDir, "否", "是")      ; 窗口黑名单 (原生 WinTitle 语法，换行隔开)
-global DragBlacklist := Var_Read("DragBlacklist", "", "基础配置", SettingsDir, "否", "是")      ; 任意位置拖拽黑名单
+global DragModBlacklist := Var_Read("DragModBlacklist", "", "基础配置", SettingsDir, "否", "是")      ; 修饰键拖拽黑名单
+global DragDirectBlacklist := Var_Read("DragDirectBlacklist", "", "基础配置", SettingsDir, "否", "是")   ; 直接键拖拽黑名单
 
 global AdminLaunch := Var_Read("AdminLaunch","0","基础配置",SettingsDir,"否") ; 是否管理员运行
 global AutoRun := Var_Read("AutoRun","0","基础配置",SettingsDir,"否") ; 是否开机自启
@@ -128,6 +129,7 @@ global willSnap := false
 global snappedX := false, snappedY := false
 
 global dragMode := "system"
+global dragTriggerType := ""  ; [新增] 记录当前是修饰键(Mod)还是直接键(Direct)触发
 global triggerKey := "LButton"
 global dragMouseOffsetX := 0
 global dragMouseOffsetY := 0
@@ -259,13 +261,16 @@ OpenSettingsGui:
     Gui, Settings:Add, Edit, x170 y183 w100 h20 vGui_ChainModKey, %ChainModKey%
     Gui, Settings:Add, Text, x280 y185 w150 h20 cGray, (如: Ctrl, Alt)
 
-    ; --- 标签页 4: 黑名单 ---
+; --- 标签页 4: 黑名单 ---
     Gui, Settings:Tab, 4
-    Gui, Settings:Add, Text, x25 y45 w400 h20, 窗口黑名单 (支持原生 WinTitle 语法，一行一个):
-    Gui, Settings:Add, Edit, x25 y70 w410 h115 vGui_Blacklist Multi WantReturn, %Blacklist%
+    Gui, Settings:Add, Text, x25 y45 w400 h20, 全局窗口黑名单 (吸附与拖拽均无效):
+    Gui, Settings:Add, Edit, x25 y65 w410 h80 vGui_Blacklist Multi WantReturn, %Blacklist%
     
-    Gui, Settings:Add, Text, x25 y195 w400 h20, 任意拖拽黑名单 (仅针对修饰键/直接键拖拽，一行一个):
-    Gui, Settings:Add, Edit, x25 y220 w410 h115 vGui_DragBlacklist Multi WantReturn, %DragBlacklist%
+    Gui, Settings:Add, Text, x25 y155 w400 h20, 修饰键拖拽黑名单 (仅限修饰键拖拽无效):
+    Gui, Settings:Add, Edit, x25 y175 w410 h70 vGui_DragModBlacklist Multi WantReturn, %DragModBlacklist%
+
+    Gui, Settings:Add, Text, x25 y255 w400 h20, 直接键拖拽黑名单 (仅限直接键拖拽无效):
+    Gui, Settings:Add, Edit, x25 y275 w410 h70 vGui_DragDirectBlacklist Multi WantReturn, %DragDirectBlacklist%
 
     ; --- 标签页 5: 系统与高级 [新增] ---
     Gui, Settings:Tab, 5
@@ -334,7 +339,8 @@ ApplyConfig:
     Var_Set(Gui_Chaining, "1", "EnableChaining", "基础配置", SettingsDir)
     Var_Set(Gui_ChainModKey, "Ctrl", "ChainModKey", "基础配置", SettingsDir)
     Var_Set(Gui_Blacklist, defaultBlacklist, "Blacklist", "基础配置", SettingsDir)
-    Var_Set(Gui_DragBlacklist, "", "DragBlacklist", "基础配置", SettingsDir) ; [新增] 任意拖拽黑名单
+ Var_Set(Gui_DragModBlacklist, "", "DragModBlacklist", "基础配置", SettingsDir)
+    Var_Set(Gui_DragDirectBlacklist, "", "DragDirectBlacklist", "基础配置", SettingsDir)
 
     ; [新增] 写入系统级配置
     Var_Set(Gui_AdminLaunch, "0", "AdminLaunch", "基础配置", SettingsDir)
@@ -360,7 +366,8 @@ ApplyConfig:
     EnableChaining := Gui_Chaining
     ChainModKey := Gui_ChainModKey
     Blacklist := Gui_Blacklist
-    DragBlacklist := Gui_DragBlacklist
+DragModBlacklist := Gui_DragModBlacklist
+    DragDirectBlacklist := Gui_DragDirectBlacklist
 
     ; [新增] 更新系统级变量
     AdminLaunch := Gui_AdminLaunch
@@ -440,9 +447,9 @@ IsBlacklisted(hwnd) {
     return false
 }
 
-; [新增] 任意位置拖拽专属黑名单检测
-IsDragBlacklisted(hwnd) {
-    Loop, Parse, DragBlacklist, `n, `r
+; [修改] 通用名单验证函数，传入 hwnd 和对应的黑名单字符串
+CheckWindowInList(hwnd, listStr) {
+    Loop, Parse, listStr, `n, `r
     {
         rule := Trim(A_LoopField)
         if (rule = "")
@@ -573,11 +580,13 @@ OnMoveEnd(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEven
 
 DoModDrag:
     triggerKey := "LButton"
+    dragTriggerType := "Mod"  ; 标记为修饰键触发
     Gosub, StartManualDrag
 return
 
 DoDirectDrag:
     triggerKey := RegExReplace(A_ThisHotkey, "^[~*$]+")
+    dragTriggerType := "Direct" ; 标记为直接键触发
     Gosub, StartManualDrag
 return
 
@@ -587,8 +596,14 @@ StartManualDrag:
 
     if (!hoverHwnd or hoverHwnd = GhostHwnd)
         return
-    ; [修改] 这里增加了自定义快捷拖拽的黑名单拦截验证
-    if IsBlacklisted(hoverHwnd) || IsDragBlacklisted(hoverHwnd)
+; [修改] 细分快捷拖拽的黑名单拦截验证
+    if IsBlacklisted(hoverHwnd)
+        return
+        
+    if (dragTriggerType = "Mod" && CheckWindowInList(hoverHwnd, DragModBlacklist))
+        return
+        
+    if (dragTriggerType = "Direct" && CheckWindowInList(hoverHwnd, DragDirectBlacklist))
         return
 
     WinGet, minMax, MinMax, ahk_id %hoverHwnd%
@@ -622,33 +637,8 @@ TrackMove:
     }
 
     ; ========================================================
-    ; 新增逻辑：智能判断是否触发/暂停吸附
+    ; 修复一：将窗口实时移动与联动逻辑提前，确保不管是否吸附都执行
     ; ========================================================
-    togglePressed := (SnapToggleKey != "") ? GetKeyState(SnapToggleKey, "P") : false
-
-    ; 【修复】区分原生拖拽与快捷拖拽的反向模式响应规则
-    if (dragMode = "manual") {
-        ; 任意位置快捷拖拽时，无视反向模式 (RequireKeyToSnap)，强制保持默认吸附手感，按下 ToggleKey 时中断吸附
-        suspendSnapping := togglePressed
-    } else {
-        ; 原生系统标题栏拖拽时，遵从反向模式设定
-        suspendSnapping := RequireKeyToSnap ? !togglePressed : togglePressed
-    }
-
-    if (suspendSnapping) {
-        willSnap := false
-        if (ghostVisible) {
-            Gui, Ghost: Hide
-            ghostVisible := false
-        }
-        if (dragMode = "manual") {
-            CoordMode, Mouse, Screen
-            MouseGetPos, cmX, cmY
-            WinMove, ahk_id %movingHwnd%, , % cmX + dragMouseOffsetX + diffX, % cmY + dragMouseOffsetY + diffY
-        }
-        return ; 跳过后续吸附计算逻辑
-    }
-
     if (dragMode = "manual") {
         CoordMode, Mouse, Screen
         MouseGetPos, cmX, cmY
@@ -660,12 +650,40 @@ TrackMove:
         GetRealPos(movingHwnd, mX, mY, mW, mH)
     }
 
+    ; 执行窗口联动移动计算
     if (ChainedGroup.Length() > 0) {
         deltaX := mX - startMoveX
         deltaY := mY - startMoveY
         For index, child in ChainedGroup {
             WinMove, % "ahk_id " child.hwnd, , % child.sX + deltaX + child.dX, % child.sY + deltaY + child.dY
         }
+    }
+
+    ; ========================================================
+    ; 修复二：智能判断是否触发吸附（尺寸同步按键可强制唤醒探测）
+    ; ========================================================
+    togglePressed := (SnapToggleKey != "") ? GetKeyState(SnapToggleKey, "P") : false
+    syncPressed := (EnableSmartSync && SmartSyncKey != "") ? GetKeyState(SmartSyncKey, "P") : false
+
+    if (dragMode = "manual") {
+        ; 快捷拖拽时，如果按下了尺寸同步键，则强制允许吸附计算以保证同步生效
+        suspendSnapping := togglePressed && !syncPressed
+    } else {
+        ; 原生拖拽时，如果按下了尺寸同步键，必须覆盖反向模式强制启动边缘探测
+        if (syncPressed) {
+            suspendSnapping := false
+        } else {
+            suspendSnapping := RequireKeyToSnap ? !togglePressed : togglePressed
+        }
+    }
+
+    if (suspendSnapping) {
+        willSnap := false
+        if (ghostVisible) {
+            Gui, Ghost: Hide
+            ghostVisible := false
+        }
+        return ; 此时再跳过后续吸附对齐计算，拖拽和联动已安全完成
     }
 
     mRight := mX + mW
