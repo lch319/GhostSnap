@@ -9,23 +9,28 @@ CoordMode, Mouse, Screen
 SetTitleMatchMode, 2
 
 ; ==========================================
-; 用户配置区 (全原生 1/0 纯净版)
+; 用户配置区
 ; ==========================================
-global 版本号 := "0.0.7"                ; 版本号仅供显示使用，不影响功能
+global 版本号 := "1.0.0"                ; 版本号仅供显示使用，不影响功能
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ; 配置文件路径，默认放在脚本同目录下
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ; 触发吸附的距离（像素）
 global BreakoutDistance := Var_Read("BreakoutDistance","30","基础配置",SettingsDir,"否")  ; 挣脱距离(阻尼感)，必须大于 SnapDistance
 
-; --- 布尔值全部改为原生 1 和 0 ---
 global StrictSingleAxisSnap := Var_Read("StrictSingleAxisSnap","0","基础配置",SettingsDir,"否")  ; 默认吸附模式 (1 = 单轴滑动微调，0 = 允许角落双轴锁死)
 global EnableGhostWindow := Var_Read("EnableGhostWindow","1","基础配置",SettingsDir,"否")    ; 是否启用幽灵窗口特效
 global EnableScreenEdgeSnap := Var_Read("EnableScreenEdgeSnap","1","基础配置",SettingsDir,"否")    ; 是否启用屏幕边缘吸附
-global EnableSmartSync := Var_Read("EnableSmartSync","1","基础配置",SettingsDir,"否")   ; 是否启用 Alt 键智能尺寸同步
+global EnableSmartSync := Var_Read("EnableSmartSync","1","基础配置",SettingsDir,"否")   ; 是否启用智能尺寸同步
+global SmartSyncKey := Var_Read("SmartSyncKey","Alt","基础配置",SettingsDir,"否")   ; 触发智能尺寸同步的按键
+
 global EnableChaining := Var_Read("EnableChaining","1","基础配置",SettingsDir,"否")    ; 是否启用窗口联动移动
 
 global GhostColor := Var_Read("GhostColor","0078D7","基础配置",SettingsDir,"否")    ; 幽灵窗口颜色，微软经典的系统强调色 (蓝色)，可自定义为其他颜色（格式：RRGGBB）
 global GhostOpacity := Var_Read("GhostOpacity","80","基础配置",SettingsDir,"否")  ; 幽灵窗口透明度 (0-255，80 大约是 30% 不透明)
+
+global SnapToggleKey := Var_Read("SnapToggleKey","Shift","基础配置",SettingsDir,"否") ; 临时停止/触发吸附的按键
+global RequireKeyToSnap := Var_Read("RequireKeyToSnap","0","基础配置",SettingsDir,"否") ; 是否反向吸附 (0=默认吸附/按住暂停, 1=默认不吸附/按住才吸附)
+
 global DragModKey := Var_Read("DragModKey","LWin","基础配置",SettingsDir,"否","否")  ; 任意位置拖拽窗口按键配置 (留空 "" 表示禁用该模式)
 global DragDirectKey := Var_Read("DragDirectKey","XButton1","基础配置",SettingsDir,"否","否")   ; 任意位置拖拽窗口按键配置 (留空 "" 表示禁用该模式)
 global ChainModKey := Var_Read("ChainModKey","Ctrl","基础配置",SettingsDir,"否")   ; 触发联动的修饰键 (按住此键拖拽窗口触发)
@@ -33,12 +38,44 @@ global ChainModKey := Var_Read("ChainModKey","Ctrl","基础配置",SettingsDir,"
 defaultBlacklist := "FloatingBall悬浮球 ahk_class AutoHotkeyGUI`nahk_exe PixPin.exe`nahk_exe Snipaste.exe`nahk_class Progman`nahk_class WorkerW`nahk_class Shell_TrayWnd`nahk_class TopLevelWindowForOverflow`nahk_class Shell_SecondaryTrayWnd"
 global Blacklist := Var_Read("Blacklist", defaultBlacklist, "基础配置", SettingsDir, "否", "是")      ; 窗口黑名单 (原生 WinTitle 语法，换行隔开)
 
+global AdminLaunch := Var_Read("AdminLaunch","0","基础配置",SettingsDir,"否") ; 是否管理员运行
+global AutoRun := Var_Read("AutoRun","0","基础配置",SettingsDir,"否") ; 是否开机自启
+global ShowTrayIcon := Var_Read("ShowTrayIcon","1","基础配置",SettingsDir,"否") ; [新增] 是否显示托盘图标
+
+; --- 管理员启动 ---
+if (!A_IsAdmin && AdminLaunch="1")
+{
+    try
+    {
+        if A_IsCompiled
+            Run *RunAs "%A_ScriptFullPath%" /restart
+        else
+            Run *RunAs "%A_AhkPath%" /restart "%A_ScriptFullPath%"
+    }catch{
+        MsgBox, 1,, 以【管理员权限】启动失败！将以普通权限启动，管理员应用窗口将失效！
+        IfMsgBox OK
+        {
+            if A_IsCompiled
+                Run "%A_ScriptFullPath%" /restart
+            else
+                Run "%A_AhkPath%" /restart "%A_ScriptFullPath%"
+        }
+    }
+    ExitApp
+}
+
+; --- 开机自启检测 ---
+Label_AutoRun(AutoRun)
+
 global CurrentDragModKey := DragModKey
 global CurrentDragDirectKey := DragDirectKey
-
 ; ==========================================
 ; 系统托盘菜单初始化
 ; ==========================================
+; [新增] 初始化时判断是否隐藏图标
+if (!ShowTrayIcon)
+    Menu, Tray, NoIcon
+
 Menu, Tray, NoStandard
 Menu, Tray, Add, 设置中心, OpenSettingsGui
 Menu, Tray, Default, 设置中心
@@ -49,9 +86,9 @@ if (StrictSingleAxisSnap)
 Menu, Tray, Add, 启用幽灵窗口, ToggleGhostWindow
 if (EnableGhostWindow)
     Menu, Tray, Check, 启用幽灵窗口
-Menu, Tray, Add, 启用 Alt 键智能尺寸同步, ToggleSmartSync
+Menu, Tray, Add, 启用智能尺寸同步, ToggleSmartSync
 if (EnableSmartSync)
-    Menu, Tray, Check, 启用 Alt 键智能尺寸同步
+    Menu, Tray, Check, 启用智能尺寸同步
 Menu, Tray, Add, 启用按键联动移动, ToggleChaining
 if (EnableChaining)
     Menu, Tray, Check, 启用按键联动移动
@@ -83,7 +120,8 @@ global startMoveX := 0, startMoveY := 0
 global ChainedGroup := []
 
 ; --- 初始化幽灵窗口 ---
-Gui, Ghost: +LastFound +AlwaysOnTop -Caption +ToolWindow +E0x20 +HwndGhostHwnd
+; 【修改】增加 -DPIScale 参数防止高分屏下幽灵窗口尺寸错乱
+Gui, Ghost: +LastFound +AlwaysOnTop -Caption +ToolWindow +E0x20 -DPIScale +HwndGhostHwnd
 Gui, Ghost: Color, % GhostColor
 WinSet, Transparent, % GhostOpacity
 
@@ -118,7 +156,7 @@ ToggleGhostWindow:
 return
 ToggleSmartSync:
     EnableSmartSync := !EnableSmartSync
-    Menu, Tray, ToggleCheck, 启用 Alt 键智能尺寸同步
+    Menu, Tray, ToggleCheck, 启用智能尺寸同步
     Var_Set(EnableSmartSync, "1", "EnableSmartSync", "基础配置", SettingsDir)
 return
 ToggleChaining:
@@ -141,22 +179,33 @@ OpenSettingsGui:
     Gui, Settings:Destroy
 
     Gui, Settings:Font, s9, Microsoft YaHei
-    Gui, Settings:Add, Tab3, x10 y10 w460 h320, 基础吸附|外观特效|拖拽与联动|黑名单
+    ; [修改] 增大了窗口和 Tab 的高度，以容纳新加的按键配置
+    Gui, Settings:Add, Tab3, x10 y10 w460 h360, 基础吸附|外观特效|拖拽与联动|黑名单|系统与高级|关于
 
     ; --- 标签页 1: 基础吸附 ---
     Gui, Settings:Tab, 1
-    Gui, Settings:Add, Text, x30 y50 w150 h20, 触发吸附距离 (像素):
-    Gui, Settings:Add, Edit, x190 y48 w80 h20 vGui_SnapDistance Number, %SnapDistance%
+    Gui, Settings:Add, Text, x30 y45 w150 h20, 触发吸附距离 (像素):
+    Gui, Settings:Add, Edit, x190 y43 w80 h20 vGui_SnapDistance Number, %SnapDistance%
     Gui, Settings:Add, UpDown, Range1-100, %SnapDistance%
 
-    Gui, Settings:Add, Text, x30 y90 w150 h20, 挣脱阻尼距离 (像素):
-    Gui, Settings:Add, Edit, x190 y88 w80 h20 vGui_BreakoutDistance Number, %BreakoutDistance%
+    Gui, Settings:Add, Text, x30 y75 w150 h20, 挣脱阻尼距离 (像素):
+    Gui, Settings:Add, Edit, x190 y73 w80 h20 vGui_BreakoutDistance Number, %BreakoutDistance%
     Gui, Settings:Add, UpDown, Range1-200, %BreakoutDistance%
 
-    ; 变量完美直通 Checkbox，0=未勾选，1=勾选
-    Gui, Settings:Add, Checkbox, x30 y135 w300 h20 vGui_StrictSingle Checked%StrictSingleAxisSnap%, 单轴滑动微调模式 (防角落锁死)
-    Gui, Settings:Add, Checkbox, x30 y170 w300 h20 vGui_EdgeSnap Checked%EnableScreenEdgeSnap%, 启用屏幕边缘吸附
-    Gui, Settings:Add, Checkbox, x30 y205 w300 h20 vGui_SmartSync Checked%EnableSmartSync%, 启用 Alt 键智能尺寸同步
+    Gui, Settings:Add, Checkbox, x30 y115 w300 h20 vGui_StrictSingle Checked%StrictSingleAxisSnap%, 单轴滑动微调模式 (防角落锁死)
+    Gui, Settings:Add, Checkbox, x30 y145 w300 h20 vGui_EdgeSnap Checked%EnableScreenEdgeSnap%, 启用屏幕边缘吸附
+
+    Gui, Settings:Add, Checkbox, x30 y175 w130 h20 vGui_SmartSync Checked%EnableSmartSync%, 启用智能尺寸同步
+    Gui, Settings:Add, Text, x170 y177 w60 h20, 触发按键:
+    Gui, Settings:Add, Edit, x230 y175 w80 h20 vGui_SmartSyncKey, %SmartSyncKey%
+    Gui, Settings:Add, Text, x320 y177 w100 h20 cGray, (默认: Alt)
+
+    Gui, Settings:Add, Text, x30 y215 w130 h20, 吸附切换/中断按键:
+    Gui, Settings:Add, Edit, x170 y213 w80 h20 vGui_SnapToggleKey, %SnapToggleKey%
+    Gui, Settings:Add, Text, x260 y215 w180 h20 cGray, (默认: Shift)
+
+    Gui, Settings:Add, Checkbox, x30 y250 w380 h20 vGui_RequireKeyToSnap Checked%RequireKeyToSnap%, 反向模式：平时不吸附，按住上方按键才触发吸附
+    Gui, Settings:Add, Text, x50 y275 w380 h40 cGray, 备注: 勾选此项后，按键逻辑将反转。适合平时不希望频繁触发吸附，仅在特定时刻才需要的用户。
 
     ; --- 标签页 2: 外观特效 ---
     Gui, Settings:Tab, 2
@@ -189,15 +238,41 @@ OpenSettingsGui:
     ; --- 标签页 4: 黑名单 ---
     Gui, Settings:Tab, 4
     Gui, Settings:Add, Text, x25 y45 w400 h20, 窗口黑名单 (支持原生 WinTitle 语法，一行一个):
-    Gui, Settings:Add, Edit, x25 y70 w430 h240 vGui_Blacklist Multi WantReturn, %Blacklist%
+    Gui, Settings:Add, Edit, x25 y70 w410 h270 vGui_Blacklist Multi WantReturn, %Blacklist%
+
+    ; --- 标签页 5: 系统与高级 [新增] ---
+    Gui, Settings:Tab, 5
+    Gui, Settings:Add, Checkbox, x30 y50 w300 h20 vGui_AdminLaunch Checked%AdminLaunch%, 以管理员权限运行 (需重启脚本生效)
+    Gui, Settings:Add, Checkbox, x30 y85 w300 h20 vGui_AutoRun Checked%AutoRun%, 开机自启动
+    Gui, Settings:Add, Checkbox, x30 y120 w350 h20 vGui_ShowTrayIcon Checked%ShowTrayIcon%, 显示托盘图标 (若隐藏需手动修改 ini 文件恢复)
+
+    ; --- 标签页 6: 关于 ---
+    Gui, Settings:Tab, 6
+    Gui, Settings:Add, GroupBox, x25 y45 w410 h270, 关于软件
+
+    Gui, Settings:Add, Text, x45 y75 w80 h20, 软件名称:
+    Gui, Settings:Add, Text, x120 y75 w200 h20 c0078D7, GhostSnap
+
+    Gui, Settings:Add, Text, x45 y110 w80 h20, 当前版本:
+    Gui, Settings:Add, Text, x120 y110 w200 h20, v%版本号%
+
+    Gui, Settings:Add, Text, x45 y145 w80 h20, 软件作者:
+    Gui, Settings:Add, Text, x120 y145 w200 h20, 逍遥
+
+    Gui, Settings:Add, Text, x45 y180 w80 h20, 开源地址:
+    ; 使用 Link 控件包裹 <a> 标签，用户点击即可自动用浏览器打开网页
+    Gui, Settings:Add, Link, x120 y180 w300 h20, <a href="https://github.com/lch319/GhostSnap">github.com/lch319/GhostSnap</a>
+
+    Gui, Settings:Add, Text, x45 y225 w370 h60 cGray, 声明与提示:`n本软件为开源窗口增强工具，提供智能吸附、尺寸同步、幽灵窗口及窗口移动联动等功能。感谢您的使用与支持！
 
     ; --- 底部按钮区 ---
     Gui, Settings:Tab
-    Gui, Settings:Add, Button, x110 y345 w100 h32 Default gSaveAndRestart, 保存并重启
-    Gui, Settings:Add, Button, x220 y345 w80 h32 gApplyConfig, 应用
-    Gui, Settings:Add, Button, x310 y345 w80 h32 gSettingsGuiClose, 取消
+    ; [调整] 整体 y 坐标下移以适应更大的界面
+    Gui, Settings:Add, Button, x110 y385 w100 h32 Default gSaveAndRestart, 保存并重启
+    Gui, Settings:Add, Button, x220 y385 w80 h32 gApplyConfig, 应用
+    Gui, Settings:Add, Button, x310 y385 w80 h32 gSettingsGuiClose, 取消
 
-    Gui, Settings:Show, w480 h395, GhostSnap 设置中心
+    Gui, Settings:Show, w480 h435, GhostSnap_v%版本号% 设置中心
 return
 
 ChooseColorBtn:
@@ -222,11 +297,21 @@ ApplyConfig:
     Var_Set(Gui_GhostOpacity, "80", "GhostOpacity", "基础配置", SettingsDir)
     Var_Set(Gui_EdgeSnap, "1", "EnableScreenEdgeSnap", "基础配置", SettingsDir)
     Var_Set(Gui_SmartSync, "1", "EnableSmartSync", "基础配置", SettingsDir)
+
+    Var_Set(Gui_SmartSyncKey, "Alt", "SmartSyncKey", "基础配置", SettingsDir)
+    Var_Set(Gui_SnapToggleKey, "Shift", "SnapToggleKey", "基础配置", SettingsDir)
+    Var_Set(Gui_RequireKeyToSnap, "0", "RequireKeyToSnap", "基础配置", SettingsDir)
+
     Var_Set(Gui_DragModKey, "LWin", "DragModKey", "基础配置", SettingsDir)
     Var_Set(Gui_DragDirectKey, "XButton1", "DragDirectKey", "基础配置", SettingsDir)
     Var_Set(Gui_Chaining, "1", "EnableChaining", "基础配置", SettingsDir)
     Var_Set(Gui_ChainModKey, "Ctrl", "ChainModKey", "基础配置", SettingsDir)
     Var_Set(Gui_Blacklist, defaultBlacklist, "Blacklist", "基础配置", SettingsDir)
+
+    ; [新增] 写入系统级配置
+    Var_Set(Gui_AdminLaunch, "0", "AdminLaunch", "基础配置", SettingsDir)
+    Var_Set(Gui_AutoRun, "0", "AutoRun", "基础配置", SettingsDir)
+    Var_Set(Gui_ShowTrayIcon, "1", "ShowTrayIcon", "基础配置", SettingsDir)
 
     ; 同步更新内存全局变量 (实现热更新)，直接接收 1/0
     SnapDistance := Gui_SnapDistance
@@ -237,16 +322,26 @@ ApplyConfig:
     GhostOpacity := Gui_GhostOpacity
     EnableScreenEdgeSnap := Gui_EdgeSnap
     EnableSmartSync := Gui_SmartSync
+
+    SmartSyncKey := Gui_SmartSyncKey
+    SnapToggleKey := Gui_SnapToggleKey
+    RequireKeyToSnap := Gui_RequireKeyToSnap
+
     DragModKey := Gui_DragModKey
     DragDirectKey := Gui_DragDirectKey
     EnableChaining := Gui_Chaining
     ChainModKey := Gui_ChainModKey
     Blacklist := Gui_Blacklist
 
+    ; [新增] 更新系统级变量
+    AdminLaunch := Gui_AdminLaunch
+    AutoRun := Gui_AutoRun
+    ShowTrayIcon := Gui_ShowTrayIcon
+
     ; 更新托盘菜单 Check 状态
     Menu, Tray, % StrictSingleAxisSnap ? "Check" : "Uncheck", 单轴滑动微调模式 (防角落锁死)
     Menu, Tray, % EnableGhostWindow ? "Check" : "Uncheck", 启用幽灵窗口
-    Menu, Tray, % EnableSmartSync ? "Check" : "Uncheck", 启用 Alt 键智能尺寸同步
+    Menu, Tray, % EnableSmartSync ? "Check" : "Uncheck", 启用智能尺寸同步
     Menu, Tray, % EnableChaining ? "Check" : "Uncheck", 启用按键联动移动
 
     ; 即时更新幽灵窗口外观
@@ -270,6 +365,13 @@ ApplyConfig:
 
     CurrentDragModKey := DragModKey
     CurrentDragDirectKey := DragDirectKey
+
+    ; [新增] 热更新系统配置
+    Label_AutoRun(AutoRun) ; 立刻写入/删除自启注册表
+    if (ShowTrayIcon)
+        Menu, Tray, Icon
+    else
+        Menu, Tray, NoIcon
 
     TrayTip, GhostSnap 设置, 配置已应用并即时生效！, 1.5
 return
@@ -387,12 +489,12 @@ SetupMoveData:
             else if (xOverlap && (Abs(realY + realH - target.Y) <= SnapDistance || Abs(realY - target.B) <= SnapDistance))
                 isAdjacent := true
 
-if (isAdjacent) {
+            if (isAdjacent) {
                 WinGetPos, cStdX, cStdY, cStdW, cStdH, % "ahk_id " target.hwnd
                 cDiffX := cStdX - target.X
                 cDiffY := cStdY - target.Y
                 ChainedGroup.Push({hwnd: target.hwnd, sX: target.X, sY: target.Y, dX: cDiffX, dY: cDiffY})
-                
+
                 target.isChained := true  ; 【新增代码】给加入了联动的窗口打上“已联动”标记
             }
         }
@@ -476,7 +578,16 @@ TrackMove:
         return
     }
 
-    if GetKeyState("Shift", "P") {
+    ; ========================================================
+    ; 新增逻辑：智能判断是否触发/暂停吸附
+    ; ========================================================
+    togglePressed := (SnapToggleKey != "") ? GetKeyState(SnapToggleKey, "P") : false
+
+    ; 如果 RequireKeyToSnap 为 1 (反向模式)，则没按下时暂停吸附；
+    ; 如果 RequireKeyToSnap 为 0 (正向模式)，则按下时暂停吸附。
+    suspendSnapping := RequireKeyToSnap ? !togglePressed : togglePressed
+
+    if (suspendSnapping) {
         willSnap := false
         if (ghostVisible) {
             Gui, Ghost: Hide
@@ -487,7 +598,7 @@ TrackMove:
             MouseGetPos, cmX, cmY
             WinMove, ahk_id %movingHwnd%, , % cmX + dragMouseOffsetX + diffX, % cmY + dragMouseOffsetY + diffY
         }
-        return
+        return ; 跳过后续吸附计算逻辑
     }
 
     if (dragMode = "manual") {
@@ -521,8 +632,8 @@ TrackMove:
     minDx := currSnapDistX + 1
     minDy := currSnapDistY + 1
 
-For index, target in TargetWindows {
-        
+    For index, target in TargetWindows {
+
         if (target.isChained)      ; 【新增代码】如果是跟着一起联动的窗口，直接跳过吸附判定
             continue               ; 【新增代码】防自相吸附核心逻辑
 
@@ -587,7 +698,8 @@ For index, target in TargetWindows {
         if (EnableGhostWindow) {
             ghostX := newX, ghostY := newY, ghostW := mW, ghostH := mH
 
-            if (EnableSmartSync && GetKeyState("Alt", "P")) {
+            ; 应用自定义的 SmartSyncKey 替换写死的 Alt
+            if (EnableSmartSync && SmartSyncKey != "" && GetKeyState(SmartSyncKey, "P")) {
                 if (snappedX && syncTargetX) {
                     ghostY := syncTargetX.Y
                     ghostH := syncTargetX.B ? (syncTargetX.B - syncTargetX.Y) : 0
@@ -630,7 +742,8 @@ ForceEndMove:
         finalW := currW + diffW
         finalH := currH + diffH
 
-        if (EnableSmartSync && GetKeyState("Alt", "P")) {
+        ; 应用自定义的 SmartSyncKey 替换写死的 Alt
+        if (EnableSmartSync && SmartSyncKey != "" && GetKeyState(SmartSyncKey, "P")) {
             if (snappedX && syncTargetX) {
                 finalY := syncTargetX.Y + diffY
                 finalH := (syncTargetX.B ? (syncTargetX.B - syncTargetX.Y) : syncTargetX.H) + diffH
@@ -667,7 +780,7 @@ GetRealPos(hwnd, ByRef x, ByRef y, ByRef w, ByRef h) {
         return true
     }
     WinGetPos, x, y, w, h, ahk_id %hwnd%
-    return false
+    return true  ; 【修改】改为 true，确保 fallback 后窗口仍能成为吸附目标
 }
 
 ; ===========================================================
@@ -717,13 +830,35 @@ Var_Read(rValue,defVar:="",Section名:="基础配置",Config:="个人配置.ini"
     }
 }
 
-Var_Set(vGui, var, sz,Section名:="基础配置",Config:="个人配置.ini"){
+Var_Set(vGui, var, sz, Section名:="基础配置", Config:="个人配置.ini"){
     StringCaseSense, On
     vGui_safe := StrReplace(vGui, "`r`n", "[CRLF]")
     vGui_safe := StrReplace(vGui_safe, "`n", "[CRLF]")
-    if(vGui_safe!=var)
+
+    ; 【新增】将默认值也统一转换为 [CRLF] 格式以供精准比对
+    var_safe := StrReplace(var, "`r`n", "[CRLF]")
+    var_safe := StrReplace(var_safe, "`n", "[CRLF]")
+
+    if(vGui_safe != var_safe)
         IniWrite,%vGui_safe%,%Config%, %Section名%, %sz%
     Else
         IniDelete,%Config%,%Section名%, %sz%
     StringCaseSense, Off
+}
+
+; ==============================================================================
+; 新增：开机自启逻辑处理
+; ==============================================================================
+Label_AutoRun(Auto_Launch:="0"){
+    ; 使用 A_ScriptFullPath 兼容编译(.exe)与未编译(.ahk)环境
+    RegRead, Auto_Launch_reg, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, GhostSnap
+    Auto_Launch_reg := (Auto_Launch_reg = A_ScriptFullPath) ? 1 : 0
+
+    If(Auto_Launch != Auto_Launch_reg){
+        If(Auto_Launch){
+            RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, GhostSnap, %A_ScriptFullPath%
+        }Else{
+            RegDelete, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, GhostSnap
+        }
+    }
 }
