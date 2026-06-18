@@ -1,24 +1,24 @@
 ﻿; 编译exe文件信息及版本号设置
-当前工具版本:="1.0.3"                  ;设置版本号
+当前工具版本:="1.1.0"                  ;设置版本号
 ;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"  ;判断位数
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%  ;读取版本号以编译
-;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ; 指定托盘图标文件
-;@Ahk2Exe-AddResource GhostSnap图标.ico, 160      ; 替换自带的'蓝色H'图标
-;@Ahk2Exe-AddResource GhostSnap图标.ico, 206      ; 替换为 '绿色 S'
-;@Ahk2Exe-AddResource GhostSnap图标.ico, 207      ; 替换自带的'红色H'图标
-;@Ahk2Exe-AddResource GhostSnap图标.ico, 208      ; 替换为 '红色 S'
-;@Ahk2Exe-ExeName %A_ScriptDir%\GhostSnap%U_version%.exe  ; 打包后的exe文件路径
-;@Ahk2Exe-SetCompanyName 逍遥xiaoyao        ; 企业信息
-;@Ahk2Exe-SetCopyright 逍遥xiaoyao          ; 版权信息
-;@Ahk2Exe-SetDescription 把窗口拖拽变成磁铁吸附，靠近边缘自动对齐  ; 文件说明
-;@Ahk2Exe-SetFileVersion %U_version%        ; 文件版本
-;@Ahk2Exe-SetInternalName GhostSnap        ; 文件内部名
-;@Ahk2Exe-SetLanguage 0x0804            ; 区域语言
-;@Ahk2Exe-SetName GhostSnap          ; 名称
-;@Ahk2Exe-SetProductName GhostSnap        ; 产品名称
-;@Ahk2Exe-SetOrigFilename GhostSnap.exe      ; 原始文件名称
-;@Ahk2Exe-SetProductVersion %U_version%        ; 产品版本号
-;@Ahk2Exe-SetVersion %U_version%          ; 版本号
+;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ;指定托盘图标文件
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 160      ;替换自带的'蓝色H'图标
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 206      ;替换为 '绿色 S'
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 207      ;替换自带的'红色H'图标
+;@Ahk2Exe-AddResource GhostSnap图标.ico, 208      ;替换为 '红色 S'
+;@Ahk2Exe-ExeName %A_ScriptDir%\GhostSnap%U_version%.exe  ;打包后的exe文件路径
+;@Ahk2Exe-SetCompanyName 逍遥xiaoyao        ;企业信息
+;@Ahk2Exe-SetCopyright 逍遥xiaoyao          ;版权信息
+;@Ahk2Exe-SetDescription 把窗口拖拽变成磁铁吸附，靠近边缘自动对齐  ;文件说明
+;@Ahk2Exe-SetFileVersion %U_version%        ;文件版本
+;@Ahk2Exe-SetInternalName GhostSnap        ;文件内部名
+;@Ahk2Exe-SetLanguage 0x0804            ;区域语言
+;@Ahk2Exe-SetName GhostSnap          ;名称
+;@Ahk2Exe-SetProductName GhostSnap        ;产品名称
+;@Ahk2Exe-SetOrigFilename GhostSnap.exe      ;原始文件名称
+;@Ahk2Exe-SetProductVersion %U_version%        ;产品版本号
+;@Ahk2Exe-SetVersion %U_version%          ;版本号
 
 #NoEnv
 #SingleInstance Force
@@ -33,38 +33,57 @@ SetTitleMatchMode, 2
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-global CurrentToolVersion := "1.0.3"
-global SettingsDir := A_ScriptDir "\GhostSnap.ini" ; 配置文件路径，默认放在脚本同目录下
+global CurrentToolVersion := "1.0.8"
+global SettingsDir := A_ScriptDir "\GhostSnap.ini" ;配置文件路径
 
-global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ; 触发吸附的距离（像素）
-global BreakoutDistance := Var_Read("BreakoutDistance","30","基础配置",SettingsDir,"否")  ; 挣脱距离(阻尼感)，必须大于 SnapDistance
+global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ;触发吸附的距离（像素）
+global BreakoutDistance := Var_Read("BreakoutDistance","30","基础配置",SettingsDir,"否")  ; 挣脱距离(阻尼感)
 
-global StrictSingleAxisSnap := Var_Read("StrictSingleAxisSnap","0","基础配置",SettingsDir,"否")  ; 默认吸附模式 (1 = 单轴滑动微调，0 = 允许角落双轴锁死)
-global EnableGhostWindow := Var_Read("EnableGhostWindow","1","基础配置",SettingsDir,"否")    ; 是否启用幽灵窗口特效
-global EnableScreenEdgeSnap := Var_Read("EnableScreenEdgeSnap","1","基础配置",SettingsDir,"否")    ; 是否启用屏幕边缘吸附
-global EnableSmartSync := Var_Read("EnableSmartSync","1","基础配置",SettingsDir,"否")   ; 是否启用智能尺寸同步
-global SmartSyncKey := Var_Read("SmartSyncKey","Alt","基础配置",SettingsDir,"否")   ; 触发智能尺寸同步的按键
+global StrictSingleAxisSnap := Var_Read("StrictSingleAxisSnap","0","基础配置",SettingsDir,"否")  ;默认吸附模式
+global EnableGhostWindow := Var_Read("EnableGhostWindow","1","基础配置",SettingsDir,"否")    ;启用幽灵窗口特效
+global EnableScreenEdgeSnap := Var_Read("EnableScreenEdgeSnap","1","基础配置",SettingsDir,"否")    ;屏幕边缘吸附
+global EnableSmartSync := Var_Read("EnableSmartSync","1","基础配置",SettingsDir,"否")   ;智能尺寸同步
+global SmartSyncKey := Var_Read("SmartSyncKey","Alt","基础配置",SettingsDir,"否")   ;触发智能尺寸同步的按键
 
-global EnableChaining := Var_Read("EnableChaining","1","基础配置",SettingsDir,"否")    ; 是否启用窗口联动移动
+global EnableChaining := Var_Read("EnableChaining","1","基础配置",SettingsDir,"否")    ;窗口联动移动
+global GhostColor := Var_Read("GhostColor","0078D7","基础配置",SettingsDir,"否")    ;幽灵窗口颜色
+global GhostOpacity := Var_Read("GhostOpacity","80","基础配置",SettingsDir,"否")  ;幽灵窗口透明度
 
-global GhostColor := Var_Read("GhostColor","0078D7","基础配置",SettingsDir,"否")    ; 幽灵窗口颜色，微软经典的系统强调色 (蓝色)，可自定义为其他颜色（格式：RRGGBB）
-global GhostOpacity := Var_Read("GhostOpacity","80","基础配置",SettingsDir,"否")  ; 幽灵窗口透明度 (0-255，80 大约是 30% 不透明)
+global EnableSnapAnimation := Var_Read("EnableSnapAnimation","1","基础配置",SettingsDir,"否") ;是否启用吸附动画
+global SnapAnimSteps := Var_Read("SnapAnimSteps","4","基础配置",SettingsDir,"否")             ;动画过渡帧数
+global SnapAnimSleep := Var_Read("SnapAnimSleep","10","基础配置",SettingsDir,"否")            ;动画每帧延迟(毫秒)
 
-global SnapToggleKey := Var_Read("SnapToggleKey","Shift","基础配置",SettingsDir,"否") ; 临时停止/触发吸附的按键
-global RequireKeyToSnap := Var_Read("RequireKeyToSnap","0","基础配置",SettingsDir,"否") ; 是否反向吸附 (0=默认吸附/按住暂停, 1=默认不吸附/按住才吸附)
+global SnapToggleKey := Var_Read("SnapToggleKey","Shift","基础配置",SettingsDir,"否") ;临时停止/触发吸附的按键
+global RequireKeyToSnap := Var_Read("RequireKeyToSnap","0","基础配置",SettingsDir,"否") ; 反向吸附
 
-global DragModKey := Var_Read("DragModKey","LWin","基础配置",SettingsDir,"否","否")  ; 任意位置拖拽窗口按键配置 (留空 "" 表示禁用该模式)
-global DragDirectKey := Var_Read("DragDirectKey","XButton1","基础配置",SettingsDir,"否","否")   ; 任意位置拖拽窗口按键配置 (留空 "" 表示禁用该模式)
-global ChainModKey := Var_Read("ChainModKey","Ctrl","基础配置",SettingsDir,"否")   ; 触发联动的修饰键 (按住此键拖拽窗口触发)
+global DragModKey := Var_Read("DragModKey","LWin","基础配置",SettingsDir,"否","否")  ;任意位置拖拽修饰键
+global DragDirectKey := Var_Read("DragDirectKey","XButton1","基础配置",SettingsDir,"否","否")   ;任意位置拖拽直接键
+global ChainModKey := Var_Read("ChainModKey","Ctrl","基础配置",SettingsDir,"否")   ;触发联动的修饰键
 
 defaultBlacklist := "FloatingBall悬浮球 ahk_class AutoHotkeyGUI`nahk_exe PixPin.exe`nahk_exe Snipaste.exe`nahk_class Progman`nahk_class WorkerW`nahk_class Shell_TrayWnd`nahk_class TopLevelWindowForOverflow`nahk_class Shell_SecondaryTrayWnd"
-global Blacklist := Var_Read("Blacklist", defaultBlacklist, "基础配置", SettingsDir, "否", "是")      ; 窗口黑名单 (原生 WinTitle 语法，换行隔开)
-global DragModBlacklist := Var_Read("DragModBlacklist", "", "基础配置", SettingsDir, "否", "是")      ; 修饰键拖拽黑名单
-global DragDirectBlacklist := Var_Read("DragDirectBlacklist", "", "基础配置", SettingsDir, "否", "是")   ; 直接键拖拽黑名单
+global Blacklist := Var_Read("Blacklist", defaultBlacklist, "基础配置", SettingsDir, "否", "是")      ;窗口黑名单
+global DragModBlacklist := Var_Read("DragModBlacklist", "", "基础配置", SettingsDir, "否", "是")      ;修饰键拖拽黑名单
+global DragDirectBlacklist := Var_Read("DragDirectBlacklist", "", "基础配置", SettingsDir, "否", "是")   ;直接键拖拽黑名单
 
-global AdminLaunch := Var_Read("AdminLaunch","0","基础配置",SettingsDir,"否") ; 是否管理员运行
+global AdminLaunch := Var_Read("AdminLaunch","0","基础配置",SettingsDir,"否") ;是否管理员运行
 global AutoRun := Var_Read("AutoRun","0","基础配置",SettingsDir,"否") ; 是否开机自启
-global ShowTrayIcon := Var_Read("ShowTrayIcon","1","基础配置",SettingsDir,"否") ; [新增] 是否显示托盘图标
+global ShowTrayIcon := Var_Read("ShowTrayIcon","1","基础配置",SettingsDir,"否") ; 是否显示托盘图标
+
+; --- 贴边隐藏新增配置 ---
+global AutoHideModKey := Var_Read("AutoHideModKey","CapsLock","贴边隐藏",SettingsDir,"否") ; 触发按键
+global AutoHideProtrude := Var_Read("AutoHideProtrude","8","贴边隐藏",SettingsDir,"否")  ; 边缘凸出长度
+global AutoHideShowDelay := Var_Read("AutoHideShowDelay","150","贴边隐藏",SettingsDir,"否") ;悬停显示延迟
+global AutoHideHideDelay := Var_Read("AutoHideHideDelay","350","贴边隐藏",SettingsDir,"否") ; 移出隐藏延迟
+global AutoHideTolerance := Var_Read("AutoHideTolerance","5","贴边隐藏",SettingsDir,"否")  ; 移出判定容差
+global AutoHideTopmost := Var_Read("AutoHideTopmost","1","贴边隐藏",SettingsDir,"否")   ;是否置顶
+global AutoHideFocus := Var_Read("AutoHideFocus","1","贴边隐藏",SettingsDir,"否")     ; 呼出时是否获取焦点
+global AutoHideFullscreenHide := Var_Read("AutoHideFullscreenHide","1","贴边隐藏",SettingsDir,"否") ; 全屏时是否完全隐藏凸出部分
+
+; 独立动画配置
+global EnableAutoHideAnim := Var_Read("EnableAutoHideAnim","1","贴边隐藏",SettingsDir,"否")
+global AutoHideAnimSteps := Var_Read("AutoHideAnimSteps","5","贴边隐藏",SettingsDir,"否")
+global AutoHideAnimSleep := Var_Read("AutoHideAnimSleep","8","贴边隐藏",SettingsDir,"否")
+global HiddenWindows := {} ; 用于存储正在贴边隐藏的窗口信息字典
 
 ; --- 管理员启动 ---
 if (!A_IsAdmin && AdminLaunch="1")
@@ -97,7 +116,10 @@ global CurrentDragDirectKey := DragDirectKey
 ; ==========================================
 ; 系统托盘菜单初始化
 ; ==========================================
-; [新增] 初始化时判断是否隐藏图标
+iconFile := A_ScriptDir "\GhostSnap图标.ico"
+if FileExist(iconFile)
+    Menu, Tray, Icon, %iconFile%
+
 if (!ShowTrayIcon)
     Menu, Tray, NoIcon
 
@@ -129,7 +151,7 @@ global willSnap := false
 global snappedX := false, snappedY := false
 
 global dragMode := "system"
-global dragTriggerType := ""  ; [新增] 记录当前是修饰键(Mod)还是直接键(Direct)触发
+global dragTriggerType := ""
 global triggerKey := "LButton"
 global dragMouseOffsetX := 0
 global dragMouseOffsetY := 0
@@ -146,7 +168,6 @@ global startMoveX := 0, startMoveY := 0
 global ChainedGroup := []
 
 ; --- 初始化幽灵窗口 ---
-; 【修改】增加 -DPIScale 参数防止高分屏下幽灵窗口尺寸错乱
 Gui, Ghost: +LastFound +AlwaysOnTop -Caption +ToolWindow +E0x20 -DPIScale +HwndGhostHwnd
 Gui, Ghost: Color, % GhostColor
 WinSet, Transparent, % GhostOpacity
@@ -161,6 +182,21 @@ if (CurrentDragDirectKey != "")
 
 OnExit("Cleanup")
 Return
+
+; ===========================================================
+; 全局鼠标事件双保险 (防止拖拽状态卡死)
+; ===========================================================
+~LButton Up::
+    if (isMoving && dragMode == "manual") {
+        SetTimer, TrackMove, Off
+        SetTimer, ExecEndMove, -1  ;【关键修复】使用异步定时器脱钩执行
+    }
+return
+
+; 【关键修复】异步中转器，脱离系统的 Hook 线程保护操作
+ExecEndMove:
+    Gosub, ForceEndMove
+return
 
 ; ===========================================================
 ; 托盘菜单与 GUI 辅助函数
@@ -198,15 +234,13 @@ ExitAppRoutine:
 ExitApp
 return
 
-; ===========================================================
+; ==========================================
 ; 设置中心 GUI 界面逻辑
-; ===========================================================
+; ==========================================
 OpenSettingsGui:
     Gui, Settings:Destroy
-
     Gui, Settings:Font, s9, Microsoft YaHei
-    ; [修改] 增大了窗口和 Tab 的高度，以容纳新加的按键配置
-    Gui, Settings:Add, Tab3, x10 y10 w460 h360, 基础吸附|外观特效|拖拽与联动|黑名单|系统与高级|关于
+    Gui, Settings:Add, Tab3, x10 y10 w460 h380, 基础吸附|外观与动画|拖拽与联动|贴边隐藏|黑名单|系统与高级|关于
 
     ; --- 标签页 1: 基础吸附 ---
     Gui, Settings:Tab, 1
@@ -233,21 +267,37 @@ OpenSettingsGui:
     Gui, Settings:Add, Checkbox, x30 y250 w380 h20 vGui_RequireKeyToSnap Checked%RequireKeyToSnap%, 反向模式：平时不吸附，按住上方按键才触发吸附
     Gui, Settings:Add, Text, x50 y275 w380 h40 cGray, 备注: 勾选此项后，按键逻辑将反转。适合平时不希望频繁触发吸附，仅在特定时刻才需要的用户。
 
-    ; --- 标签页 2: 外外观特效 ---
+    ; --- 标签页 2: 外观与动画 ---
     Gui, Settings:Tab, 2
-    Gui, Settings:Add, Checkbox, x30 y50 w300 h20 vGui_GhostWin Checked%EnableGhostWindow%, 启用幽灵窗口特效
+    Gui, Settings:Add, Checkbox, x30 y40 w300 h20 vGui_GhostWin Checked%EnableGhostWindow%, 启用幽灵窗口特效
 
-    Gui, Settings:Add, Text, x30 y95 w100 h20, 幽灵窗口颜色:
-    Gui, Settings:Add, Edit, x130 y93 w70 h20 vGui_GhostColor Limit6, %GhostColor%
-    Gui, Settings:Add, Progress, x210 y93 w20 h20 Background%GhostColor% vColorPreview
-    Gui, Settings:Add, Button, x240 y91 w80 h24 gChooseColorBtn, 选择颜色
+    Gui, Settings:Add, Text, x30 y75 w100 h20, 幽灵窗口颜色:
+    Gui, Settings:Add, Edit, x130 y73 w70 h20 vGui_GhostColor Limit6, %GhostColor%
+    Gui, Settings:Add, Progress, x210 y73 w20 h20 Background%GhostColor% vColorPreview
+    Gui, Settings:Add, Button, x240 y71 w80 h24 gChooseColorBtn, 选择颜色
 
-    Gui, Settings:Add, Text, x30 y145 w100 h20, 透明度 (0-255):
-    Gui, Settings:Add, Slider, x125 y145 w200 h30 vGui_GhostOpacity Range0-255 TickInterval25 ToolTip, %GhostOpacity%
+    Gui, Settings:Add, Text, x30 y115 w100 h20, 幽灵透明度 (0-255):
+    Gui, Settings:Add, Slider, x125 y115 w200 h30 vGui_GhostOpacity Range0-255 TickInterval25 ToolTip, %GhostOpacity%
+
+    ; --- 动画配置 ---
+    Gui, Settings:Add, GroupBox, x25 y160 w410 h140, 磁吸释放平滑过渡动画
+    Gui, Settings:Add, Checkbox, x40 y185 w350 h20 vGui_EnableAnim Checked%EnableSnapAnimation% gToggleAnimGuiState, 启用释放吸附时的平滑过渡动画 (关闭则为生硬瞬移)
+
+    Gui, Settings:Add, Text, x40 y225 w110 h20 vGui_TextSteps, 动画过渡帧数 (组):
+    Gui, Settings:Add, Edit, x155 y223 w60 h20 vGui_AnimSteps Number, %SnapAnimSteps%
+    Gui, Settings:Add, UpDown, Range1-30, %SnapAnimSteps%
+    Gui, Settings:Add, Text, x225 y225 w200 h20 cGray vGui_DescSteps, (帧数越多，过渡动作分解越细)
+
+    Gui, Settings:Add, Text, x40 y260 w110 h20 vGui_TextSleep, 每帧延迟时间 (ms):
+    Gui, Settings:Add, Edit, x155 y258 w60 h20 vGui_AnimSleep Number, %SnapAnimSleep%
+    Gui, Settings:Add, UpDown, Range1-100, %SnapAnimSleep%
+    Gui, Settings:Add, Text, x225 y260 w200 h20 cGray vGui_DescSleep, (延迟越低帧率越高，动画结算越快)
+
+    GoSub, ToggleAnimGuiState
 
     ; --- 标签页 3: 拖拽与联动 ---
     Gui, Settings:Tab, 3
-    Gui, Settings:Add, Text, x30 y50 w140 h20, 任意位置拖拽修饰键:
+    Gui Settings:Add, Text, x30 y50 w140 h20, 任意位置拖拽修饰键:
     Gui, Settings:Add, Edit, x170 y48 w100 h20 vGui_DragModKey, %DragModKey%
     Gui, Settings:Add, Text, x280 y50 w150 h20 cGray, (如:LWin 留空则禁用)
 
@@ -256,55 +306,106 @@ OpenSettingsGui:
     Gui, Settings:Add, Text, x280 y90 w150 h20 cGray, (如: XButton1 MButton)
 
     Gui, Settings:Add, Checkbox, x30 y145 w300 h20 vGui_Chaining Checked%EnableChaining%, 启用窗口联动移动
-
     Gui, Settings:Add, Text, x30 y185 w140 h20, 触发联动修饰键:
     Gui, Settings:Add, Edit, x170 y183 w100 h20 vGui_ChainModKey, %ChainModKey%
     Gui, Settings:Add, Text, x280 y185 w150 h20 cGray, (如: Ctrl, Alt)
 
-; --- 标签页 4: 黑名单 ---
+    ; --- 标签页 4: 贴边隐藏 ---
     Gui, Settings:Tab, 4
+    Gui, Settings:Add, Text, x30 y45 w140 h20, 触发贴边隐藏按键:
+    Gui, Settings:Add, Edit, x180 y43 w100 h20 vGui_AutoHideModKey, %AutoHideModKey%
+    Gui, Settings:Add, Text, x290 y45 w150 h20 cGray, (默认: CapsLock, 留空禁用)
+
+    Gui, Settings:Add, Text, x30 y75 w140 h20, 边缘凸出长度 (像素):
+    Gui, Settings:Add, Edit, x180 y73 w50 h20 vGui_AutoHideProtrude Number, %AutoHideProtrude%
+
+    Gui, Settings:Add, Text, x250 y75 w140 h20, 移出判定容差 (像素):
+    Gui, Settings:Add, Edit, x380 y73 w50 h20 vGui_AutoHideTolerance Number, %AutoHideTolerance%
+
+    Gui, Settings:Add, Text, x30 y105 w140 h20, 悬停显示延迟 (毫秒):
+    Gui, Settings:Add, Edit, x180 y103 w50 h20 vGui_AutoHideShowDelay Number, %AutoHideShowDelay%
+
+    Gui, Settings:Add, Text, x250 y105 w140 h20, 移出隐藏延迟 (毫秒):
+    Gui, Settings:Add, Edit, x380 y103 w50 h20 vGui_AutoHideHideDelay Number, %AutoHideHideDelay%
+
+    Gui, Settings:Add, Checkbox, x30 y135 w150 h20 vGui_AutoHideTopmost Checked%AutoHideTopmost%, 隐藏/显示时保持置顶
+    Gui, Settings:Add, Checkbox, x190 y135 w200 h20 vGui_AutoHideFocus Checked%AutoHideFocus%, 呼出时获取焦点，隐藏时失去
+
+    ; 独立动画配置
+    Gui, Settings:Add, GroupBox, x25 y165 w410 h110, 贴边隐藏平滑过渡动画
+    Gui, Settings:Add, Checkbox, x40 y185 w350 h20 vGui_EnableAutoHideAnim Checked%EnableAutoHideAnim% gToggleAutoHideAnimGuiState, 启用贴边隐藏/呼出时的平滑过渡动画
+
+    Gui, Settings:Add, Text, x40 y215 w110 h20 vGui_TextAHSteps, 动画过渡帧数 (组):
+    Gui, Settings:Add, Edit, x155 y213 w60 h20 vGui_AHAnimSteps Number, %AutoHideAnimSteps%
+    Gui, Settings:Add, UpDown, Range1-30, %AutoHideAnimSteps%
+
+    Gui, Settings:Add, Text, x235 y215 w110 h20 vGui_TextAHSleep, 每帧延迟时间 (ms):
+    Gui, Settings:Add, Edit, x350 y213 w60 h20 vGui_AHAnimSleep Number, %AutoHideAnimSleep%
+    Gui, Settings:Add, UpDown, Range1-100, %AutoHideAnimSleep%
+
+    ; 新增：全屏是否自动完全隐藏
+    Gui, Settings:Add, Checkbox, x30 y285 w350 h20 vGui_AutoHideFullscreen Checked%AutoHideFullscreenHide%, 全屏时自动完全隐藏凸出部分 (防打扰)
+    Gui, Settings:Add, Text, x30 y310 w400 h40 cGray, 提示：移动窗口至屏幕边缘并按住上方修饰键即可触发。
+
+    GoSub, ToggleAutoHideAnimGuiState
+
+    ; --- 标签页 5: 黑名单 ---
+    Gui, Settings:Tab, 5
     Gui, Settings:Add, Text, x25 y45 w400 h20, 全局窗口黑名单 (吸附与拖拽均无效):
     Gui, Settings:Add, Edit, x25 y65 w410 h80 vGui_Blacklist Multi WantReturn, %Blacklist%
-    
+
     Gui, Settings:Add, Text, x25 y155 w400 h20, 修饰键拖拽黑名单 (仅限修饰键拖拽无效):
     Gui, Settings:Add, Edit, x25 y175 w410 h70 vGui_DragModBlacklist Multi WantReturn, %DragModBlacklist%
 
     Gui, Settings:Add, Text, x25 y255 w400 h20, 直接键拖拽黑名单 (仅限直接键拖拽无效):
     Gui, Settings:Add, Edit, x25 y275 w410 h70 vGui_DragDirectBlacklist Multi WantReturn, %DragDirectBlacklist%
 
-    ; --- 标签页 5: 系统与高级 [新增] ---
-    Gui, Settings:Tab, 5
+    ; --- 标签页 6: 系统与高级 ---
+    Gui, Settings:Tab, 6
     Gui, Settings:Add, Checkbox, x30 y50 w300 h20 vGui_AdminLaunch Checked%AdminLaunch%, 以管理员权限运行 (需重启脚本生效)
     Gui, Settings:Add, Checkbox, x30 y85 w300 h20 vGui_AutoRun Checked%AutoRun%, 开机自启动
     Gui, Settings:Add, Checkbox, x30 y120 w350 h20 vGui_ShowTrayIcon Checked%ShowTrayIcon%, 显示托盘图标 (若隐藏需手动修改 ini 文件恢复)
 
-    ; --- 标签页 6: 关于 ---
-    Gui, Settings:Tab, 6
+    ; --- 标签页 7: 关于 ---
+    Gui, Settings:Tab, 7
     Gui, Settings:Add, GroupBox, x25 y45 w410 h270, 关于软件
-
     Gui, Settings:Add, Text, x45 y75 w80 h20, 软件名称:
     Gui, Settings:Add, Text, x120 y75 w200 h20 c0078D7, GhostSnap
-
     Gui, Settings:Add, Text, x45 y110 w80 h20, 当前版本:
     Gui, Settings:Add, Text, x120 y110 w200 h20, v%CurrentToolVersion%
-
     Gui, Settings:Add, Text, x45 y145 w80 h20, 软件作者:
     Gui, Settings:Add, Text, x120 y145 w200 h20, 逍遥
-
     Gui, Settings:Add, Text, x45 y180 w80 h20, 开源地址:
-    ; 使用 Link 控件包裹 <a> 标签，用户点击即可自动用浏览器打开网页
     Gui, Settings:Add, Link, x120 y180 w300 h20, <a href="https://github.com/lch319/GhostSnap">github.com/lch319/GhostSnap</a>
-
-    Gui, Settings:Add, Text, x45 y225 w370 h60 cGray, 声明与提示:`n本软件为开源窗口增强工具，提供智能吸附、尺寸同步、幽灵窗口及窗口移动联动等功能。感谢您的使用与支持！
+    Gui, Settings:Add, Text, x45 y225 w370 h60 cGray, 声明与提示:`n本软件为开源窗口增强工具，提供智能吸附、尺寸同步、幽灵窗口、贴边隐藏及窗口移动联动等功能。感谢您的使用与支持！
 
     ; --- 底部按钮区 ---
     Gui, Settings:Tab
-    ; [调整] 整体 y 坐标下移以适应更大的界面
-    Gui, Settings:Add, Button, x110 y385 w100 h32 Default gSaveAndRestart, 保存并重启
-    Gui, Settings:Add, Button, x220 y385 w80 h32 gApplyConfig, 应用
-    Gui, Settings:Add, Button, x310 y385 w80 h32 gSettingsGuiClose, 取消
+    Gui, Settings:Add, Button, x110 y400 w100 h32 Default gSaveAndRestart, 保存并重启
+    Gui, Settings:Add, Button, x220 y400 w80 h32 gApplyConfig, 应用
+    Gui, Settings:Add, Button, x310 y400 w80 h32 gSettingsGuiClose, 取消
 
-    Gui, Settings:Show, w480 h435, GhostSnap_v%CurrentToolVersion% 设置中心
+    Gui, Settings:Show, w480 h445, GhostSnap_v%CurrentToolVersion% 设置中心
+return
+
+ToggleAnimGuiState:
+    Gui, Settings:Submit, NoHide
+    state := Gui_EnableAnim ? "Enable" : "Disable"
+    GuiControl, Settings:%state%, Gui_AnimSteps
+    GuiControl, Settings:%state%, Gui_AnimSleep
+    GuiControl, Settings:%state%, Gui_TextSteps
+    GuiControl, Settings:%state%, Gui_TextSleep
+    GuiControl, Settings:%state%, Gui_DescSteps
+    GuiControl, Settings:%state%, Gui_DescSleep
+return
+
+ToggleAutoHideAnimGuiState:
+    Gui, Settings:Submit, NoHide
+    stateAH := Gui_EnableAutoHideAnim ? "Enable" : "Disable"
+    GuiControl, Settings:%stateAH%, Gui_AHAnimSteps
+    GuiControl, Settings:%stateAH%, Gui_AHAnimSleep
+    GuiControl, Settings:%stateAH%, Gui_TextAHSteps
+    GuiControl, Settings:%stateAH%, Gui_TextAHSleep
 return
 
 ChooseColorBtn:
@@ -316,11 +417,9 @@ ChooseColorBtn:
     }
 return
 
-; 【应用配置 (不重启，即时生效)】
 ApplyConfig:
     Gui, Settings:Submit, NoHide
 
-    ; 保存到 INI：告别 true/false 转换，直接写入 1/0
     Var_Set(Gui_SnapDistance, "20", "SnapDistance", "基础配置", SettingsDir)
     Var_Set(Gui_BreakoutDistance, "30", "BreakoutDistance", "基础配置", SettingsDir)
     Var_Set(Gui_StrictSingle, "0", "StrictSingleAxisSnap", "基础配置", SettingsDir)
@@ -329,6 +428,10 @@ ApplyConfig:
     Var_Set(Gui_GhostOpacity, "80", "GhostOpacity", "基础配置", SettingsDir)
     Var_Set(Gui_EdgeSnap, "1", "EnableScreenEdgeSnap", "基础配置", SettingsDir)
     Var_Set(Gui_SmartSync, "1", "EnableSmartSync", "基础配置", SettingsDir)
+
+    Var_Set(Gui_EnableAnim, "1", "EnableSnapAnimation", "基础配置", SettingsDir)
+    Var_Set(Gui_AnimSteps, "4", "SnapAnimSteps", "基础配置", SettingsDir)
+    Var_Set(Gui_AnimSleep, "10", "SnapAnimSleep", "基础配置", SettingsDir)
 
     Var_Set(Gui_SmartSyncKey, "Alt", "SmartSyncKey", "基础配置", SettingsDir)
     Var_Set(Gui_SnapToggleKey, "Shift", "SnapToggleKey", "基础配置", SettingsDir)
@@ -339,15 +442,26 @@ ApplyConfig:
     Var_Set(Gui_Chaining, "1", "EnableChaining", "基础配置", SettingsDir)
     Var_Set(Gui_ChainModKey, "Ctrl", "ChainModKey", "基础配置", SettingsDir)
     Var_Set(Gui_Blacklist, defaultBlacklist, "Blacklist", "基础配置", SettingsDir)
- Var_Set(Gui_DragModBlacklist, "", "DragModBlacklist", "基础配置", SettingsDir)
+    Var_Set(Gui_DragModBlacklist, "", "DragModBlacklist", "基础配置", SettingsDir)
     Var_Set(Gui_DragDirectBlacklist, "", "DragDirectBlacklist", "基础配置", SettingsDir)
 
-    ; [新增] 写入系统级配置
     Var_Set(Gui_AdminLaunch, "0", "AdminLaunch", "基础配置", SettingsDir)
     Var_Set(Gui_AutoRun, "0", "AutoRun", "基础配置", SettingsDir)
     Var_Set(Gui_ShowTrayIcon, "1", "ShowTrayIcon", "基础配置", SettingsDir)
 
-    ; 同步更新内存全局变量 (实现热更新)，直接接收 1/0
+    ; 保存贴边隐藏配置
+    Var_Set(Gui_AutoHideModKey, "CapsLock", "AutoHideModKey", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideProtrude, "8", "AutoHideProtrude", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideShowDelay, "150", "AutoHideShowDelay", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideHideDelay, "350", "AutoHideHideDelay", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideTolerance, "5", "AutoHideTolerance", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideTopmost, "1", "AutoHideTopmost", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideFocus, "1", "AutoHideFocus", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_EnableAutoHideAnim, "1", "EnableAutoHideAnim", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AHAnimSteps, "5", "AutoHideAnimSteps", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AHAnimSleep, "8", "AutoHideAnimSleep", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideFullscreen, "1", "AutoHideFullscreenHide", "贴边隐藏", SettingsDir)
+
     SnapDistance := Gui_SnapDistance
     BreakoutDistance := Gui_BreakoutDistance
     StrictSingleAxisSnap := Gui_StrictSingle
@@ -356,6 +470,10 @@ ApplyConfig:
     GhostOpacity := Gui_GhostOpacity
     EnableScreenEdgeSnap := Gui_EdgeSnap
     EnableSmartSync := Gui_SmartSync
+
+    EnableSnapAnimation := Gui_EnableAnim
+    SnapAnimSteps := Gui_AnimSteps
+    SnapAnimSleep := Gui_AnimSleep
 
     SmartSyncKey := Gui_SmartSyncKey
     SnapToggleKey := Gui_SnapToggleKey
@@ -366,21 +484,30 @@ ApplyConfig:
     EnableChaining := Gui_Chaining
     ChainModKey := Gui_ChainModKey
     Blacklist := Gui_Blacklist
-DragModBlacklist := Gui_DragModBlacklist
+    DragModBlacklist := Gui_DragModBlacklist
     DragDirectBlacklist := Gui_DragDirectBlacklist
 
-    ; [新增] 更新系统级变量
     AdminLaunch := Gui_AdminLaunch
     AutoRun := Gui_AutoRun
     ShowTrayIcon := Gui_ShowTrayIcon
 
-    ; 更新托盘菜单 Check 状态
+    AutoHideModKey := Gui_AutoHideModKey
+    AutoHideProtrude := Gui_AutoHideProtrude
+    AutoHideShowDelay := Gui_AutoHideShowDelay
+    AutoHideHideDelay := Gui_AutoHideHideDelay
+    AutoHideTolerance := Gui_AutoHideTolerance
+    AutoHideTopmost := Gui_AutoHideTopmost
+    AutoHideFocus := Gui_AutoHideFocus
+    EnableAutoHideAnim := Gui_EnableAutoHideAnim
+    AutoHideAnimSteps := Gui_AHAnimSteps
+    AutoHideAnimSleep := Gui_AHAnimSleep
+    AutoHideFullscreenHide := Gui_AutoHideFullscreen
+
     Menu, Tray, % StrictSingleAxisSnap ? "Check" : "Uncheck", 单轴滑动微调模式 (防角落锁死)
     Menu, Tray, % EnableGhostWindow ? "Check" : "Uncheck", 启用幽灵窗口
     Menu, Tray, % EnableSmartSync ? "Check" : "Uncheck", 启用智能尺寸同步
     Menu, Tray, % EnableChaining ? "Check" : "Uncheck", 启用按键联动移动
 
-    ; 即时更新幽灵窗口外观
     Gui, Ghost: Color, % GhostColor
     WinSet, Transparent, % GhostOpacity, ahk_id %GhostHwnd%
     if (!EnableGhostWindow && ghostVisible) {
@@ -388,7 +515,6 @@ DragModBlacklist := Gui_DragModBlacklist
         ghostVisible := false
     }
 
-    ; 热更新：动态注销旧快捷键并注册新快捷键
     if (CurrentDragModKey != "" && CurrentDragModKey != DragModKey)
         Hotkey, %CurrentDragModKey% & LButton, Off, UseErrorLevel
     if (CurrentDragDirectKey != "" && CurrentDragDirectKey != DragDirectKey)
@@ -402,8 +528,7 @@ DragModBlacklist := Gui_DragModBlacklist
     CurrentDragModKey := DragModKey
     CurrentDragDirectKey := DragDirectKey
 
-    ; [新增] 热更新系统配置
-    Label_AutoRun(AutoRun) ; 立刻写入/删除自启注册表
+    Label_AutoRun(AutoRun)
     if (ShowTrayIcon)
         Menu, Tray, Icon
     else
@@ -412,7 +537,6 @@ DragModBlacklist := Gui_DragModBlacklist
     TrayTip, GhostSnap 设置, 配置已应用并即时生效！, 1.5
 return
 
-; 【保存并重启】
 SaveAndRestart:
     GoSub, ApplyConfig
     Reload
@@ -427,6 +551,16 @@ return
 ; ===========================================================
 
 Cleanup() {
+    global HiddenWindows
+    ; 退出时释放所有被贴边隐藏的窗口
+    For hw, info in HiddenWindows {
+        if WinExist("ahk_id " hw) {
+            WinMove, ahk_id %hw%, , % info.shownX, % info.shownY, % info.w, % info.h
+            if (!info.origTopmost)
+                WinSet, Topmost, Off, ahk_id %hw%
+        }
+    }
+
     DllCall("UnhookWinEvent", "Ptr", hookStart)
     DllCall("UnhookWinEvent", "Ptr", hookEnd)
 }
@@ -447,7 +581,6 @@ IsBlacklisted(hwnd) {
     return false
 }
 
-; [修改] 通用名单验证函数，传入 hwnd 和对应的黑名单字符串
 CheckWindowInList(hwnd, listStr) {
     Loop, Parse, listStr, `n, `r
     {
@@ -456,6 +589,39 @@ CheckWindowInList(hwnd, listStr) {
             continue
         if WinExist(rule " ahk_id " hwnd)
             return true
+    }
+    return false
+}
+
+IsFullscreen(hwnd) {
+    WinGetPos, x, y, w, h, ahk_id %hwnd%
+    SysGet, monCount, MonitorCount
+    Loop, %monCount% {
+        SysGet, mon, Monitor, %A_Index%
+        if (x == monLeft && y == monTop && w == (monRight - monLeft) && h == (monBottom - monTop))
+            return true
+    }
+    return false
+}
+
+; 检测当前激活状态的是否为全屏窗口（如游戏、电影）
+IsActiveWindowFullscreen() {
+    hwnd := WinExist("A")
+    if (!hwnd)
+        return false
+    WinGet, style, Style, ahk_id %hwnd%
+    if (style & 0x10000000) { ; WS_VISIBLE
+        WinGetPos, x, y, w, h, ahk_id %hwnd%
+        SysGet, monCount, MonitorCount
+        Loop, %monCount% {
+            SysGet, mon, Monitor, %A_Index%
+            if (x == monLeft && y == monTop && w == (monRight - monLeft) && h == (monBottom - monTop)) {
+                WinGetClass, winClass, ahk_id %hwnd%
+                ; 排除桌面壁纸等系统默认覆盖物
+                if (winClass != "WorkerW" && winClass != "Progman")
+                    return true
+            }
+        }
     }
     return false
 }
@@ -469,6 +635,7 @@ SetupMoveData:
 
     WinGetPos, stdX, stdY, stdW, stdH, ahk_id %movingHwnd%
     GetRealPos(movingHwnd, realX, realY, realW, realH)
+
     diffX := stdX - realX
     diffY := stdY - realY
     diffW := stdW - realW
@@ -543,8 +710,7 @@ SetupMoveData:
                 cDiffX := cStdX - target.X
                 cDiffY := cStdY - target.Y
                 ChainedGroup.Push({hwnd: target.hwnd, sX: target.X, sY: target.Y, dX: cDiffX, dY: cDiffY})
-
-                target.isChained := true  ; 【新增代码】给加入了联动的窗口打上“已联动”标记
+                target.isChained := true
             }
         }
     }
@@ -557,6 +723,30 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
         return
     if (isMoving)
         return
+    if IsFullscreen(hwnd)
+        return
+
+    ; --- 若当前窗口处于贴边隐藏状态，处理调整大小和拖出 ---
+    global HiddenWindows
+    if (HiddenWindows.HasKey(hwnd)) {
+        CoordMode, Mouse, Screen
+        MouseGetPos, mX, mY
+        hit := 0
+        ; 使用 SendMessageTimeout 安全检测鼠标正在交互的窗口区域 (是否为边框拖拽调整大小)
+        DllCall("SendMessageTimeout", "Ptr", hwnd, "UInt", 0x84, "Ptr", 0, "Ptr", (mY << 16)|(mX & 0xFFFF), "UInt", 2, "UInt", 100, "Ptr*", hit)
+        isResize := (hit >= 10 && hit <= 17)
+
+        if (isResize) {
+            ; 若为调整大小，标记正在调整并放行，不破坏隐藏逻辑
+            HiddenWindows[hwnd].isResizing := true
+            return
+        } else {
+            ; 拖动标题栏等，解除隐藏
+            if (!HiddenWindows[hwnd].origTopmost)
+                WinSet, Topmost, Off, ahk_id %hwnd%
+            HiddenWindows.Delete(hwnd)
+        }
+    }
 
     movingHwnd := hwnd
     dragMode := "system"
@@ -570,23 +760,58 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
 }
 
 OnMoveEnd(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEventTime) {
-    if (idObject != 0 or hwnd != movingHwnd)
+    if (idObject != 0)
+        return
+
+    ; --- 若刚刚完成了隐藏窗口的大小调整，刷新边界判定范围 ---
+    if (HiddenWindows.HasKey(hwnd) && HiddenWindows[hwnd].isResizing) {
+        HiddenWindows[hwnd].isResizing := false
+        GetRealPos(hwnd, rX, rY, rW, rH)
+        WinGetPos, sX, sY, sW, sH, ahk_id %hwnd%
+        diffX := sX - rX, diffY := sY - rY
+        diffW := sW - rW, diffH := sH - rH
+        realW := sW - diffW
+        realH := sH - diffH
+
+        info := HiddenWindows[hwnd]
+        info.shownX := sX
+        info.shownY := sY
+        info.w := sW
+        info.h := sH
+        info.realW := realW
+        info.realH := realH
+
+        edge := info.edge
+        ; 根据新的宽高，重新计算应该隐藏缩进去的坐标系
+        if (edge == "Top")
+            info.hiddenY := sY - realH + AutoHideProtrude
+        else if (edge == "Bottom")
+            info.hiddenY := sY + realH - AutoHideProtrude
+        else if (edge == "Left")
+            info.hiddenX := sX - realW + AutoHideProtrude
+        else if (edge == "Right")
+            info.hiddenX := sX + realW - AutoHideProtrude
+
+        return ; 调整大小直接返回，不触发后续常规吸附计算
+    }
+
+    if (hwnd != movingHwnd)
         return
     if (dragMode = "manual")
         return
     SetTimer, TrackMove, Off
-    Gosub, ForceEndMove
+    SetTimer, ExecEndMove, -1  ;【关键修复】使用异步定时器脱钩执行，防止 Hook 线程阻塞
 }
 
 DoModDrag:
     triggerKey := "LButton"
-    dragTriggerType := "Mod"  ; 标记为修饰键触发
+    dragTriggerType := "Mod"
     Gosub, StartManualDrag
 return
 
 DoDirectDrag:
     triggerKey := RegExReplace(A_ThisHotkey, "^[~*$]+")
-    dragTriggerType := "Direct" ; 标记为直接键触发
+    dragTriggerType := "Direct"
     Gosub, StartManualDrag
 return
 
@@ -596,19 +821,30 @@ StartManualDrag:
 
     if (!hoverHwnd or hoverHwnd = GhostHwnd)
         return
-; [修改] 细分快捷拖拽的黑名单拦截验证
+
+    if IsFullscreen(hoverHwnd)
+        return
+
     if IsBlacklisted(hoverHwnd)
         return
-        
-    if (dragTriggerType = "Mod" && CheckWindowInList(hoverHwnd, DragModBlacklist))
+
+    if (dragTriggerType := "Mod" && CheckWindowInList(hoverHwnd, DragModBlacklist))
         return
-        
+
     if (dragTriggerType = "Direct" && CheckWindowInList(hoverHwnd, DragDirectBlacklist))
         return
 
     WinGet, minMax, MinMax, ahk_id %hoverHwnd%
     if (minMax != 0)
         return
+
+    ; --- 解除被拖拽窗口的隐藏状态 ---
+    global HiddenWindows
+    if (HiddenWindows.HasKey(hoverHwnd)) {
+        if (!HiddenWindows[hoverHwnd].origTopmost)
+            WinSet, Topmost, Off, ahk_id %hoverHwnd%
+        HiddenWindows.Delete(hoverHwnd)
+    }
 
     WinActivate, ahk_id %hoverHwnd%
 
@@ -632,25 +868,28 @@ TrackMove:
 
     if !GetKeyState(triggerKey, "P") {
         SetTimer, TrackMove, Off
-        Gosub, ForceEndMove
+        SetTimer, ExecEndMove, -1  ;【关键修复】同步改为异步执行
         return
     }
 
-    ; ========================================================
-    ; 修复一：将窗口实时移动与联动逻辑提前，确保不管是否吸附都执行
-    ; ========================================================
     if (dragMode = "manual") {
         CoordMode, Mouse, Screen
         MouseGetPos, cmX, cmY
         mX := cmX + dragMouseOffsetX
         mY := cmY + dragMouseOffsetY
         WinMove, ahk_id %movingHwnd%, , % mX + diffX, % mY + diffY
-        GetRealPos(movingHwnd, tempX, tempY, mW, mH)
+
+        WinGetPos, cStdX, cStdY, cStdW, cStdH, ahk_id %movingHwnd%
+        mW := cStdW - diffW
+        mH := cStdH - diffH
     } else {
-        GetRealPos(movingHwnd, mX, mY, mW, mH)
+        WinGetPos, cStdX, cStdY, cStdW, cStdH, ahk_id %movingHwnd%
+        mX := cStdX - diffX
+        mY := cStdY - diffY
+        mW := cStdW - diffW
+        mH := cStdH - diffH
     }
 
-    ; 执行窗口联动移动计算
     if (ChainedGroup.Length() > 0) {
         deltaX := mX - startMoveX
         deltaY := mY - startMoveY
@@ -659,17 +898,12 @@ TrackMove:
         }
     }
 
-    ; ========================================================
-    ; 修复二：智能判断是否触发吸附（尺寸同步按键可强制唤醒探测）
-    ; ========================================================
     togglePressed := (SnapToggleKey != "") ? GetKeyState(SnapToggleKey, "P") : false
     syncPressed := (EnableSmartSync && SmartSyncKey != "") ? GetKeyState(SmartSyncKey, "P") : false
 
     if (dragMode = "manual") {
-        ; 快捷拖拽时，如果按下了尺寸同步键，则强制允许吸附计算以保证同步生效
         suspendSnapping := togglePressed && !syncPressed
     } else {
-        ; 原生拖拽时，如果按下了尺寸同步键，必须覆盖反向模式强制启动边缘探测
         if (syncPressed) {
             suspendSnapping := false
         } else {
@@ -683,7 +917,7 @@ TrackMove:
             Gui, Ghost: Hide
             ghostVisible := false
         }
-        return ; 此时再跳过后续吸附对齐计算，拖拽和联动已安全完成
+        return
     }
 
     mRight := mX + mW
@@ -699,9 +933,8 @@ TrackMove:
     minDy := currSnapDistY + 1
 
     For index, target in TargetWindows {
-
-        if (target.isChained)      ; 【新增代码】如果是跟着一起联动的窗口，直接跳过吸附判定
-            continue               ; 【新增代码】防自相吸附核心逻辑
+        if (target.isChained)
+            continue
 
         yOverlap := HasOverlap(mY, mBottom, target.Y, target.B, SnapDistance)
         xOverlap := HasOverlap(mX, mRight, target.X, target.R, SnapDistance)
@@ -764,7 +997,6 @@ TrackMove:
         if (EnableGhostWindow) {
             ghostX := newX, ghostY := newY, ghostW := mW, ghostH := mH
 
-            ; 应用自定义的 SmartSyncKey 替换写死的 Alt
             if (EnableSmartSync && SmartSyncKey != "" && GetKeyState(SmartSyncKey, "P")) {
                 if (snappedX && syncTargetX) {
                     ghostY := syncTargetX.Y
@@ -801,14 +1033,16 @@ ForceEndMove:
     }
 
     if (willSnap && movingHwnd) {
-        GetRealPos(movingHwnd, currX, currY, currW, currH)
+        WinGetPos, currStdX, currStdY, currStdW, currStdH, ahk_id %movingHwnd%
+        currX := currStdX
+        currY := currStdY
 
+        ; 【清理冗余计算】保留原生标准宽高即可
         finalX := destX + diffX
         finalY := destY + diffY
-        finalW := currW + diffW
-        finalH := currH + diffH
+        finalW := currStdW
+        finalH := currStdH
 
-        ; 应用自定义的 SmartSyncKey 替换写死的 Alt
         if (EnableSmartSync && SmartSyncKey != "" && GetKeyState(SmartSyncKey, "P")) {
             if (snappedX && syncTargetX) {
                 finalY := syncTargetX.Y + diffY
@@ -820,15 +1054,110 @@ ForceEndMove:
             }
         }
 
+        currRealX := currX - diffX
+        currRealY := currY - diffY
+        finalRealX := finalX - diffX
+        finalRealY := finalY - diffY
+
+        ; ===== 条件平滑过渡动画渲染 =====
+        if (EnableSnapAnimation && SnapAnimSteps > 1) {
+            steps := SnapAnimSteps
+            Loop % steps {
+                progress := A_Index / steps
+                curFinalX := currX + (finalX - currX) * progress
+                curFinalY := currY + (finalY - currY) * progress
+                curFinalW := currStdW + (finalW - currStdW) * progress
+                curFinalH := currStdH + (finalH - currStdH) * progress
+
+                WinMove, ahk_id %movingHwnd%, , %curFinalX%, %curFinalY%, %curFinalW%, %curFinalH%
+
+                if (ChainedGroup.Length() > 0) {
+                    curRealXProg := currRealX + (finalRealX - currRealX) * progress
+                    curRealYProg := currRealY + (finalRealY - currRealY) * progress
+                    curDeltaX := curRealXProg - startMoveX
+                    curDeltaY := curRealYProg - startMoveY
+                    For index, child in ChainedGroup {
+                        WinMove, % "ahk_id " child.hwnd, , % child.sX + curDeltaX + child.dX, % child.sY + curDeltaY + child.dY
+                    }
+                }
+                Sleep, %SnapAnimSleep%
+            }
+        }
+
+        ; 终帧兜底精确对齐
         WinMove, ahk_id %movingHwnd%, , %finalX%, %finalY%, %finalW%, %finalH%
 
         if (ChainedGroup.Length() > 0) {
-            GetRealPos(movingHwnd, finalRealX, finalRealY, tmpW, tmpH)
             finalDeltaX := finalRealX - startMoveX
             finalDeltaY := finalRealY - startMoveY
-
             For index, child in ChainedGroup {
                 WinMove, % "ahk_id " child.hwnd, , % child.sX + finalDeltaX + child.dX, % child.sY + finalDeltaY + child.dY
+            }
+        }
+
+        ; =======================================================
+        ; 贴边隐藏检测与注册
+        ; =======================================================
+        if (AutoHideModKey != "" && GetKeyState(AutoHideModKey, "P")) {
+            edge := ""
+            realFinalW := finalW - diffW
+            realFinalH := finalH - diffH
+
+            ; 【关键修复】使用物理屏幕边界进行判定，解决最大化窗口干扰问题
+            SysGet, monCount, MonitorCount
+            Loop, %monCount% {
+                SysGet, mon, MonitorWorkArea, %A_Index%
+                if (Abs(finalY - diffY - monTop) <= 2) {
+                    edge := "Top"
+                    break
+                } else if (Abs(finalY - diffY + realFinalH - monBottom) <= 2) {
+                    edge := "Bottom"
+                    break
+                } else if (Abs(finalX - diffX - monLeft) <= 2) {
+                    edge := "Left"
+                    break
+                } else if (Abs(finalX - diffX + realFinalW - monRight) <= 2) {
+                    edge := "Right"
+                    break
+                }
+            }
+
+            if (edge != "") {
+                ; 使用真实去除阴影的宽高来计算隐藏后的精准坐标
+                hiddenX := finalX, hiddenY := finalY
+                if (edge == "Top")
+                    hiddenY := finalY - realFinalH + AutoHideProtrude
+                else if (edge == "Bottom")
+                    hiddenY := finalY + realFinalH - AutoHideProtrude
+                else if (edge == "Left")
+                    hiddenX := finalX - realFinalW + AutoHideProtrude
+                else if (edge == "Right")
+                    hiddenX := finalX + realFinalW - AutoHideProtrude
+
+                ; 记录窗口原有样式与位置
+                WinGet, exStyle, ExStyle, ahk_id %movingHwnd%
+                origTopmost := (exStyle & 0x8) ? 1 : 0
+
+                HiddenWindows[movingHwnd] := { edge: edge
+                    , state: "hidden"
+                    , hoverTime: 0
+                    , leaveTime: 0
+                    , origTopmost: origTopmost
+                    , shownX: finalX, shownY: finalY
+                    , hiddenX: hiddenX, hiddenY: hiddenY
+                    , w: finalW, h: finalH
+                    , realW: realFinalW, realH: realFinalH
+                    , isFullyHidden: false
+                    , isResizing: false } ; <-- 【新增】初始化拉伸状态
+
+                ; 隐藏时强制置顶（解决凸起部分被遮挡问题）
+                WinSet, Topmost, On, ahk_id %movingHwnd%
+
+                ; 启动监视器
+                SetTimer, AutoHideTracker, 50
+
+                ; 强制触发一次隐藏动画进行收缩
+                DoAnimateWindow(movingHwnd, finalX, finalY, hiddenX, hiddenY, finalW, finalH)
             }
         }
 
@@ -836,6 +1165,153 @@ ForceEndMove:
     }
 
     movingHwnd := 0
+return
+
+; ===========================================================
+; 贴边隐藏辅助：执行平滑推拉动画 (采用独立配置)
+; ===========================================================
+DoAnimateWindow(hwnd, startX, startY, endX, endY, w, h) {
+    global EnableAutoHideAnim, AutoHideAnimSteps, AutoHideAnimSleep
+    if (EnableAutoHideAnim && AutoHideAnimSteps > 1) {
+        steps := AutoHideAnimSteps
+        Loop % steps {
+            progress := A_Index / steps
+            curX := startX + (endX - startX) * progress
+            curY := startY + (endY - startY) * progress
+            WinMove, ahk_id %hwnd%, , %curX%, %curY%, %w%, %h%
+            Sleep, %AutoHideAnimSleep%
+        }
+    }
+    ; 终帧兜底精确对齐
+    WinMove, ahk_id %hwnd%, , %endX%, %endY%, %w%, %h%
+}
+
+; ===========================================================
+; 贴边隐藏监视定时器 (负责鼠标悬停及移出判断)
+; ===========================================================
+AutoHideTracker:
+    hasItems := false
+    CoordMode, Mouse, Screen
+    MouseGetPos, mX, mY
+    toDelete := []
+
+    ; 全局检测当前系统是否有全屏应用处于焦点（防打扰机制）
+    global AutoHideFullscreenHide
+    isFullscreenNow := (AutoHideFullscreenHide && IsActiveWindowFullscreen())
+
+    For hw, info in HiddenWindows {
+        hasItems := true
+        ; 如果窗口已经被销毁，准备从字典中剔除
+        if !WinExist("ahk_id " hw) {
+            toDelete.Push(hw)
+            continue
+        }
+
+        ; 如果窗口被最大化，则退出贴边隐藏机制
+        WinGet, minMax, MinMax, ahk_id %hw%
+        if (minMax = 1) {
+            if (!info.origTopmost)
+                WinSet, Topmost, Off, ahk_id %hw%
+            toDelete.Push(hw)
+            continue
+        }
+
+        if (info.state == "hidden") {
+            ; --- 全屏完全隐藏逻辑 ---
+            targetX := info.hiddenX
+            targetY := info.hiddenY
+
+            if (isFullscreenNow) {
+                targetX := info.shownX
+                targetY := info.shownY
+                if (info.edge == "Top")
+                    targetY := info.shownY - info.realH
+                else if (info.edge == "Bottom")
+                    targetY := info.shownY + info.realH
+                else if (info.edge == "Left")
+                    targetX := info.shownX - info.realW
+                else if (info.edge == "Right")
+                    targetX := info.shownX + info.realW
+            }
+
+            if (isFullscreenNow && !info.isFullyHidden) {
+                info.isFullyHidden := true
+                DoAnimateWindow(hw, info.hiddenX, info.hiddenY, targetX, targetY, info.w, info.h)
+            } else if (!isFullscreenNow && info.isFullyHidden) {
+                info.isFullyHidden := false
+                WinGetPos, currX, currY, , , ahk_id %hw%
+                DoAnimateWindow(hw, currX, currY, info.hiddenX, info.hiddenY, info.w, info.h)
+            }
+
+            ; 隐藏状态：鼠标移入“凸出部分”（如果完全隐藏则不响应悬停呼出）
+            if (!info.isFullyHidden && mX >= info.hiddenX && mX <= info.hiddenX + info.w && mY >= info.hiddenY && mY <= info.hiddenY + info.h) {
+                info.hoverTime += 50
+                if (info.hoverTime >= AutoHideShowDelay) {
+                    info.state := "shown"
+                    info.hoverTime := 0
+                    info.leaveTime := 0
+
+                    ; 呼出时，如果不要求强制置顶，则剥夺强制置顶，恢复它原有的属性
+                    if (!AutoHideTopmost && !info.origTopmost)
+                        WinSet, Topmost, Off, ahk_id %hw%
+
+                    DoAnimateWindow(hw, info.hiddenX, info.hiddenY, info.shownX, info.shownY, info.w, info.h)
+
+                    if (AutoHideFocus)
+                        WinActivate, ahk_id %hw%
+                }
+            } else {
+                info.hoverTime := 0
+            }
+        }
+        else if (info.state == "shown") {
+
+            ; --- 【关键修复：防调整大小/防误触异常隐藏】 ---
+            ; 1. info.isResizing: 由系统钩子判断出用户正在拖拽边框调整大小
+            ; 2. GetKeyState("LButton", "P") && WinActive: 用户正在按住左键操作这个激活的窗口（比如拖拽滚动条，框选文字等）
+            ; 满足任一条件时，直接重置移出倒计时，暂停隐藏动作！
+            if (info.isResizing || (GetKeyState("LButton", "P") && WinActive("ahk_id " hw))) {
+                info.leaveTime := 0
+                continue
+            }
+
+            ; 显示状态：鼠标移出“完整窗口区域 + 容差”
+            tol := AutoHideTolerance
+            if (mX < info.shownX - tol || mX > info.shownX + info.w + tol || mY < info.shownY - tol || mY > info.shownY + info.h + tol) {
+                info.leaveTime += 50
+                if (info.leaveTime >= AutoHideHideDelay) {
+                    info.state := "hidden"
+                    info.leaveTime := 0
+                    info.hoverTime := 0
+
+                    ; 缩进隐藏时，为了防止被别的窗口遮住凸起部位，必须让它跑到最上层
+                    WinSet, Topmost, On, ahk_id %hw%
+
+                    ; --- 失去焦点逻辑处理 ---
+                    if (AutoHideFocus && WinActive("ahk_id " hw)) {
+                        ; 尝试将焦点平滑移交给当前鼠标指向的其他窗口，否则降级回桌面
+                        MouseGetPos,,, underHwnd
+                        if (underHwnd && underHwnd != hw)
+                            WinActivate, ahk_id %underHwnd%
+                        else
+                            WinActivate, ahk_class Progman
+                    }
+
+                    DoAnimateWindow(hw, info.shownX, info.shownY, info.hiddenX, info.hiddenY, info.w, info.h)
+                }
+            } else {
+                info.leaveTime := 0
+            }
+        }
+    }
+
+    ; 安全地清除无效窗口记录
+    For i, del in toDelete
+        HiddenWindows.Delete(del)
+
+    ; 字典清空后关闭计时器节约性能
+    if (!hasItems)
+        SetTimer, AutoHideTracker, Off
 return
 
 GetRealPos(hwnd, ByRef x, ByRef y, ByRef w, ByRef h) {
@@ -846,7 +1322,7 @@ GetRealPos(hwnd, ByRef x, ByRef y, ByRef w, ByRef h) {
         return true
     }
     WinGetPos, x, y, w, h, ahk_id %hwnd%
-    return true  ; 【修改】改为 true，确保 fallback 后窗口仍能成为吸附目标
+    return true
 }
 
 ; ===========================================================
@@ -901,7 +1377,6 @@ Var_Set(vGui, var, sz, Section名:="基础配置", Config:="个人配置.ini"){
     vGui_safe := StrReplace(vGui, "`r`n", "[CRLF]")
     vGui_safe := StrReplace(vGui_safe, "`n", "[CRLF]")
 
-    ; 【新增】将默认值也统一转换为 [CRLF] 格式以供精准比对
     var_safe := StrReplace(var, "`r`n", "[CRLF]")
     var_safe := StrReplace(var_safe, "`n", "[CRLF]")
 
@@ -912,11 +1387,7 @@ Var_Set(vGui, var, sz, Section名:="基础配置", Config:="个人配置.ini"){
     StringCaseSense, Off
 }
 
-; ==============================================================================
-; 新增：开机自启逻辑处理
-; ==============================================================================
 Label_AutoRun(Auto_Launch:="0"){
-    ; 使用 A_ScriptFullPath 兼容编译(.exe)与未编译(.ahk)环境
     RegRead, Auto_Launch_reg, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, GhostSnap
     Auto_Launch_reg := (Auto_Launch_reg = A_ScriptFullPath) ? 1 : 0
 
