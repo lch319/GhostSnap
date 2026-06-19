@@ -1,6 +1,6 @@
 # 窗口吸附增强工具 (GhostSnap)
 
-**一句话介绍：** 把窗口拖拽变成磁铁吸附，靠近边缘自动对齐。
+**一句话介绍：** 把窗口拖拽变成磁铁吸附，靠近边缘自动对齐、贴边隐藏。
 <img width="1252" height="768" alt="功能演示" src="https://github.com/user-attachments/assets/c4029ab2-5631-4ddc-b658-bb838dbfbdbf" />
 <img width="1162" height="856" alt="功能演示3" src="https://github.com/user-attachments/assets/1c861fdf-b90e-4162-bc46-b3f44aec81a6" />
 <img width="1250" height="816" alt="PixPin exe_2026-06-16_21-40-24" src="https://github.com/user-attachments/assets/615ec393-bcc3-4548-9aa8-c9d7ae3cb7d5" />
