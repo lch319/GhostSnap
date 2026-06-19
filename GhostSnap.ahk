@@ -1,5 +1,5 @@
 ﻿; 编译exe文件信息及版本号设置
-当前工具版本:="1.1.0"                  ;设置版本号
+当前工具版本:="1.1.2"                  ;设置版本号
 ;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"  ;判断位数
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%  ;读取版本号以编译
 ;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ;指定托盘图标文件
@@ -33,7 +33,7 @@ SetTitleMatchMode, 2
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-global CurrentToolVersion := "1.0.8"
+global CurrentToolVersion := "1.1.2"
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ;配置文件路径
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ;触发吸附的距离（像素）
@@ -75,7 +75,8 @@ global AutoHideProtrude := Var_Read("AutoHideProtrude","8","贴边隐藏",Settin
 global AutoHideShowDelay := Var_Read("AutoHideShowDelay","150","贴边隐藏",SettingsDir,"否") ;悬停显示延迟
 global AutoHideHideDelay := Var_Read("AutoHideHideDelay","350","贴边隐藏",SettingsDir,"否") ; 移出隐藏延迟
 global AutoHideTolerance := Var_Read("AutoHideTolerance","5","贴边隐藏",SettingsDir,"否")  ; 移出判定容差
-global AutoHideTopmost := Var_Read("AutoHideTopmost","1","贴边隐藏",SettingsDir,"否")   ;是否置顶
+global AutoHideEdgePriority := Var_Read("AutoHideEdgePriority","0","贴边隐藏",SettingsDir,"否") ; 优先级: 0=上下, 1=左右
+global AutoHideTopmost := Var_Read("AutoHideTopmost","0","贴边隐藏",SettingsDir,"否")   ;是否置顶
 global AutoHideFocus := Var_Read("AutoHideFocus","1","贴边隐藏",SettingsDir,"否")     ; 呼出时是否获取焦点
 global AutoHideFullscreenHide := Var_Read("AutoHideFullscreenHide","1","贴边隐藏",SettingsDir,"否") ; 全屏时是否完全隐藏凸出部分
 
@@ -84,6 +85,7 @@ global EnableAutoHideAnim := Var_Read("EnableAutoHideAnim","1","贴边隐藏",Se
 global AutoHideAnimSteps := Var_Read("AutoHideAnimSteps","5","贴边隐藏",SettingsDir,"否")
 global AutoHideAnimSleep := Var_Read("AutoHideAnimSleep","8","贴边隐藏",SettingsDir,"否")
 global HiddenWindows := {} ; 用于存储正在贴边隐藏的窗口信息字典
+global wasHiddenHwnd := 0  ; 用于存储被拖拽出的贴边隐藏窗口ID
 
 ; --- 管理员启动 ---
 if (!A_IsAdmin && AdminLaunch="1")
@@ -328,24 +330,29 @@ OpenSettingsGui:
     Gui, Settings:Add, Text, x250 y105 w140 h20, 移出隐藏延迟 (毫秒):
     Gui, Settings:Add, Edit, x380 y103 w50 h20 vGui_AutoHideHideDelay Number, %AutoHideHideDelay%
 
-    Gui, Settings:Add, Checkbox, x30 y135 w150 h20 vGui_AutoHideTopmost Checked%AutoHideTopmost%, 隐藏/显示时保持置顶
-    Gui, Settings:Add, Checkbox, x190 y135 w200 h20 vGui_AutoHideFocus Checked%AutoHideFocus%, 呼出时获取焦点，隐藏时失去
+    Gui, Settings:Add, Text, x30 y135 w100 h20, 角落隐藏优先:
+    edgeChoice := (AutoHideEdgePriority == "1") ? 2 : 1
+    Gui, Settings:Add, DropDownList, x130 y133 w100 vGui_AutoHideEdgePriority AltSubmit Choose%edgeChoice%, 上下优先|左右优先
+
+    Gui, Settings:Add, Checkbox, x250 y135 w200 h20 vGui_AutoHideTopmost Checked%AutoHideTopmost%, 隐藏/显示时保持置顶
+
+    Gui, Settings:Add, Checkbox, x30 y165 w200 h20 vGui_AutoHideFocus Checked%AutoHideFocus%, 呼出时获取焦点，隐藏时失去
 
     ; 独立动画配置
-    Gui, Settings:Add, GroupBox, x25 y165 w410 h110, 贴边隐藏平滑过渡动画
-    Gui, Settings:Add, Checkbox, x40 y185 w350 h20 vGui_EnableAutoHideAnim Checked%EnableAutoHideAnim% gToggleAutoHideAnimGuiState, 启用贴边隐藏/呼出时的平滑过渡动画
+    Gui, Settings:Add, GroupBox, x25 y195 w410 h110, 贴边隐藏平滑过渡动画
+    Gui, Settings:Add, Checkbox, x40 y215 w350 h20 vGui_EnableAutoHideAnim Checked%EnableAutoHideAnim% gToggleAutoHideAnimGuiState, 启用贴边隐藏/呼出时的平滑过渡动画
 
-    Gui, Settings:Add, Text, x40 y215 w110 h20 vGui_TextAHSteps, 动画过渡帧数 (组):
-    Gui, Settings:Add, Edit, x155 y213 w60 h20 vGui_AHAnimSteps Number, %AutoHideAnimSteps%
+    Gui, Settings:Add, Text, x40 y245 w110 h20 vGui_TextAHSteps, 动画过渡帧数 (组):
+    Gui, Settings:Add, Edit, x155 y243 w60 h20 vGui_AHAnimSteps Number, %AutoHideAnimSteps%
     Gui, Settings:Add, UpDown, Range1-30, %AutoHideAnimSteps%
 
-    Gui, Settings:Add, Text, x235 y215 w110 h20 vGui_TextAHSleep, 每帧延迟时间 (ms):
-    Gui, Settings:Add, Edit, x350 y213 w60 h20 vGui_AHAnimSleep Number, %AutoHideAnimSleep%
+    Gui, Settings:Add, Text, x235 y245 w110 h20 vGui_TextAHSleep, 每帧延迟时间 (ms):
+    Gui, Settings:Add, Edit, x350 y243 w60 h20 vGui_AHAnimSleep Number, %AutoHideAnimSleep%
     Gui, Settings:Add, UpDown, Range1-100, %AutoHideAnimSleep%
 
     ; 新增：全屏是否自动完全隐藏
-    Gui, Settings:Add, Checkbox, x30 y285 w350 h20 vGui_AutoHideFullscreen Checked%AutoHideFullscreenHide%, 全屏时自动完全隐藏凸出部分 (防打扰)
-    Gui, Settings:Add, Text, x30 y310 w400 h40 cGray, 提示：移动窗口至屏幕边缘并按住上方修饰键即可触发。
+    Gui, Settings:Add, Checkbox, x30 y315 w350 h20 vGui_AutoHideFullscreen Checked%AutoHideFullscreenHide%, 全屏时自动完全隐藏凸出部分 (防打扰)
+    Gui, Settings:Add, Text, x30 y340 w400 h40 cGray, 提示：按住指定修饰键移动到边缘即可触发。贴边隐藏的窗口再次拖拽可记忆原状态。
 
     GoSub, ToggleAutoHideAnimGuiState
 
@@ -455,7 +462,11 @@ ApplyConfig:
     Var_Set(Gui_AutoHideShowDelay, "150", "AutoHideShowDelay", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AutoHideHideDelay, "350", "AutoHideHideDelay", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AutoHideTolerance, "5", "AutoHideTolerance", "贴边隐藏", SettingsDir)
-    Var_Set(Gui_AutoHideTopmost, "1", "AutoHideTopmost", "贴边隐藏", SettingsDir)
+
+    newEdgePriority := (Gui_AutoHideEdgePriority == 2) ? "1" : "0"
+    Var_Set(newEdgePriority, "0", "AutoHideEdgePriority", "贴边隐藏", SettingsDir)
+
+    Var_Set(Gui_AutoHideTopmost, "0", "AutoHideTopmost", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AutoHideFocus, "1", "AutoHideFocus", "贴边隐藏", SettingsDir)
     Var_Set(Gui_EnableAutoHideAnim, "1", "EnableAutoHideAnim", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AHAnimSteps, "5", "AutoHideAnimSteps", "贴边隐藏", SettingsDir)
@@ -496,6 +507,7 @@ ApplyConfig:
     AutoHideShowDelay := Gui_AutoHideShowDelay
     AutoHideHideDelay := Gui_AutoHideHideDelay
     AutoHideTolerance := Gui_AutoHideTolerance
+    AutoHideEdgePriority := newEdgePriority
     AutoHideTopmost := Gui_AutoHideTopmost
     AutoHideFocus := Gui_AutoHideFocus
     EnableAutoHideAnim := Gui_EnableAutoHideAnim
@@ -728,6 +740,7 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
 
     ; --- 若当前窗口处于贴边隐藏状态，处理调整大小和拖出 ---
     global HiddenWindows
+    global wasHiddenHwnd
     if (HiddenWindows.HasKey(hwnd)) {
         CoordMode, Mouse, Screen
         MouseGetPos, mX, mY
@@ -739,13 +752,17 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
         if (isResize) {
             ; 若为调整大小，标记正在调整并放行，不破坏隐藏逻辑
             HiddenWindows[hwnd].isResizing := true
+            wasHiddenHwnd := 0
             return
         } else {
-            ; 拖动标题栏等，解除隐藏
+            ; 拖动标题栏等，解除隐藏，标记记忆变量
+            wasHiddenHwnd := hwnd
             if (!HiddenWindows[hwnd].origTopmost)
                 WinSet, Topmost, Off, ahk_id %hwnd%
             HiddenWindows.Delete(hwnd)
         }
+    } else {
+        wasHiddenHwnd := 0
     }
 
     movingHwnd := hwnd
@@ -781,8 +798,11 @@ OnMoveEnd(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEven
         info.realW := realW
         info.realH := realH
 
+        info.hiddenX := sX
+        info.hiddenY := sY
+
         edge := info.edge
-        ; 根据新的宽高，重新计算应该隐藏缩进去的坐标系
+        ; 根据新的宽高，重新计算应该隐藏缩进去的坐标系 (已修复左右向缩放错位问题)
         if (edge == "Top")
             info.hiddenY := sY - realH + AutoHideProtrude
         else if (edge == "Bottom")
@@ -840,10 +860,14 @@ StartManualDrag:
 
     ; --- 解除被拖拽窗口的隐藏状态 ---
     global HiddenWindows
+    global wasHiddenHwnd
     if (HiddenWindows.HasKey(hoverHwnd)) {
+        wasHiddenHwnd := hoverHwnd
         if (!HiddenWindows[hoverHwnd].origTopmost)
             WinSet, Topmost, Off, ahk_id %hoverHwnd%
         HiddenWindows.Delete(hoverHwnd)
+    } else {
+        wasHiddenHwnd := 0
     }
 
     WinActivate, ahk_id %hoverHwnd%
@@ -901,6 +925,9 @@ TrackMove:
     togglePressed := (SnapToggleKey != "") ? GetKeyState(SnapToggleKey, "P") : false
     syncPressed := (EnableSmartSync && SmartSyncKey != "") ? GetKeyState(SmartSyncKey, "P") : false
 
+    ; 【逻辑变更】识别是否需要触发贴边隐藏（含记忆贴边判定）
+    hideIntent := (AutoHideModKey != "" && GetKeyState(AutoHideModKey, "P")) || (movingHwnd == wasHiddenHwnd)
+
     if (dragMode = "manual") {
         suspendSnapping := togglePressed && !syncPressed
     } else {
@@ -911,7 +938,8 @@ TrackMove:
         }
     }
 
-    if (suspendSnapping) {
+    ; 【关键修复】如果用户触发了贴边隐藏意图，则无视反向模式的挂起，强制进行边缘计算
+    if (suspendSnapping && !hideIntent) {
         willSnap := false
         if (ghostVisible) {
             Gui, Ghost: Hide
@@ -1098,26 +1126,44 @@ ForceEndMove:
         ; =======================================================
         ; 贴边隐藏检测与注册
         ; =======================================================
-        if (AutoHideModKey != "" && GetKeyState(AutoHideModKey, "P")) {
+        hideIntent := (AutoHideModKey != "" && GetKeyState(AutoHideModKey, "P")) || (movingHwnd == wasHiddenHwnd)
+
+        if (hideIntent) {
             edge := ""
             realFinalW := finalW - diffW
             realFinalH := finalH - diffH
 
-            ; 【关键修复】使用物理屏幕边界进行判定，解决最大化窗口干扰问题
+            ; 使用物理屏幕边界进行判定，解决最大化窗口干扰问题
             SysGet, monCount, MonitorCount
             Loop, %monCount% {
                 SysGet, mon, MonitorWorkArea, %A_Index%
-                if (Abs(finalY - diffY - monTop) <= 2) {
-                    edge := "Top"
-                    break
-                } else if (Abs(finalY - diffY + realFinalH - monBottom) <= 2) {
-                    edge := "Bottom"
-                    break
-                } else if (Abs(finalX - diffX - monLeft) <= 2) {
-                    edge := "Left"
-                    break
-                } else if (Abs(finalX - diffX + realFinalW - monRight) <= 2) {
-                    edge := "Right"
+                edgeT := (Abs(finalY - diffY - monTop) <= 2)
+                edgeB := (Abs(finalY - diffY + realFinalH - monBottom) <= 2)
+                edgeL := (Abs(finalX - diffX - monLeft) <= 2)
+                edgeR := (Abs(finalX - diffX + realFinalW - monRight) <= 2)
+
+                ; 判定逻辑：优先检查设置内的边缘角优先级
+                if (AutoHideEdgePriority == "1") { ; 左右优先
+                    if (edgeL)
+                        edge := "Left"
+                    else if (edgeR)
+                        edge := "Right"
+                    else if (edgeT)
+                        edge := "Top"
+                    else if (edgeB)
+                        edge := "Bottom"
+                } else { ; 上下优先
+                    if (edgeT)
+                        edge := "Top"
+                    else if (edgeB)
+                        edge := "Bottom"
+                    else if (edgeL)
+                        edge := "Left"
+                    else if (edgeR)
+                        edge := "Right"
+                }
+
+                if (edge != "") {
                     break
                 }
             }
@@ -1148,10 +1194,14 @@ ForceEndMove:
                     , w: finalW, h: finalH
                     , realW: realFinalW, realH: realFinalH
                     , isFullyHidden: false
-                    , isResizing: false } ; <-- 【新增】初始化拉伸状态
+                    , isResizing: false }
 
-                ; 隐藏时强制置顶（解决凸起部分被遮挡问题）
-                WinSet, Topmost, On, ahk_id %movingHwnd%
+                ; 【智能兼容】动态检测当前显示器的任务栏位置，只对无任务栏的一侧强制置顶
+                tbEdge := GetTaskbarEdgeByPos(finalX + finalW/2, finalY + finalH/2)
+                if (AutoHideTopmost || edge != tbEdge)
+                    WinSet, Topmost, On, ahk_id %movingHwnd%
+                else if (!origTopmost)
+                    WinSet, Topmost, Off, ahk_id %movingHwnd%
 
                 ; 启动监视器
                 SetTimer, AutoHideTracker, 50
@@ -1160,10 +1210,10 @@ ForceEndMove:
                 DoAnimateWindow(movingHwnd, finalX, finalY, hiddenX, hiddenY, finalW, finalH)
             }
         }
-
         willSnap := false
     }
 
+    wasHiddenHwnd := 0
     movingHwnd := 0
 return
 
@@ -1275,17 +1325,35 @@ AutoHideTracker:
                 continue
             }
 
-            ; 显示状态：鼠标移出“完整窗口区域 + 容差”
+            ; 【关键修复】显示状态：计算离开区域的边界。如果是贴边隐藏，离开判定框必须向屏幕外围无限延伸，解决经过任务栏疯狂来回隐藏/抽搐的Bug
             tol := AutoHideTolerance
-            if (mX < info.shownX - tol || mX > info.shownX + info.w + tol || mY < info.shownY - tol || mY > info.shownY + info.h + tol) {
+            leaveLeft := info.shownX - tol
+            leaveRight := info.shownX + info.w + tol
+            leaveTop := info.shownY - tol
+            leaveBottom := info.shownY + info.h + tol
+
+            if (info.edge == "Top")
+                leaveTop := -99999
+            else if (info.edge == "Bottom")
+                leaveBottom := 99999
+            else if (info.edge == "Left")
+                leaveLeft := -99999
+            else if (info.edge == "Right")
+                leaveRight := 99999
+
+            if (mX < leaveLeft || mX > leaveRight || mY < leaveTop || mY > leaveBottom) {
                 info.leaveTime += 50
                 if (info.leaveTime >= AutoHideHideDelay) {
                     info.state := "hidden"
                     info.leaveTime := 0
                     info.hoverTime := 0
 
-                    ; 缩进隐藏时，为了防止被别的窗口遮住凸起部位，必须让它跑到最上层
-                    WinSet, Topmost, On, ahk_id %hw%
+                    ; 【智能兼容】动态检测当前显示器的任务栏位置，只对无任务栏的一侧强制置顶
+                    tbEdge := GetTaskbarEdgeByPos(info.shownX + info.w/2, info.shownY + info.h/2)
+                    if (AutoHideTopmost || info.edge != tbEdge)
+                        WinSet, Topmost, On, ahk_id %hw%
+                    else if (!info.origTopmost)
+                        WinSet, Topmost, Off, ahk_id %hw%
 
                     ; --- 失去焦点逻辑处理 ---
                     if (AutoHideFocus && WinActive("ahk_id " hw)) {
@@ -1398,4 +1466,29 @@ Label_AutoRun(Auto_Launch:="0"){
             RegDelete, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, GhostSnap
         }
     }
+}
+
+; ===========================================================
+; 辅助函数：智能检测窗口中心点所在显示器的任务栏边缘位置
+; ===========================================================
+GetTaskbarEdgeByPos(cx, cy) {
+    SysGet, monCount, MonitorCount
+    Loop, %monCount% {
+        SysGet, mon, Monitor, %A_Index%
+        ; 寻找当前坐标坐落于哪个物理显示器
+        if (cx >= monLeft && cx <= monRight && cy >= monTop && cy <= monBottom) {
+            SysGet, work, MonitorWorkArea, %A_Index%
+            ; 对比物理边界与工作区边界，找出被任务栏占据的方向
+            if (workBottom < monBottom)
+                return "Bottom"
+            if (workTop > monTop)
+                return "Top"
+            if (workLeft > monLeft)
+                return "Left"
+            if (workRight < monRight)
+                return "Right"
+            return "" ; 该显示器无任务栏遮挡
+        }
+    }
+    return "Bottom" ; 兜底默认
 }
