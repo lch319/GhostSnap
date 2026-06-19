@@ -1,5 +1,5 @@
 ﻿; 编译exe文件信息及版本号设置
-当前工具版本:="1.1.2"                  ;设置版本号
+当前工具版本:="1.1.3"                  ;设置版本号
 ;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"  ;判断位数
 ;@Ahk2Exe-Let U_version = %A_PriorLine~U)^(.+"){1}(.+)".*$~$2%  ;读取版本号以编译
 ;@Ahk2Exe-SetMainIcon GhostSnap图标.ico          ;指定托盘图标文件
@@ -27,13 +27,28 @@ SetBatchLines, -1
 SetWinDelay, -1
 CoordMode, Mouse, Screen
 
+; ====================================================
+; ======== 新增：跨版本单例与优雅关闭旧进程 ========
+; ====================================================
+DetectHiddenWindows, On
+; 查找是否有固定名称为 "GhostSnap_Main_Instance" 的旧版隐藏主窗口
+oldInstance := WinExist("GhostSnap_Main_Instance ahk_class AutoHotkey")
+if (oldInstance && oldInstance != A_ScriptHwnd) {
+    WinClose, ahk_id %oldInstance%
+    WinWaitClose, ahk_id %oldInstance%, , 3  ; 给旧版 3 秒时间执行 OnExit(Cleanup) 释放钩子和恢复窗口
+}
+; 将当前新版本的主窗口重命名为固定名称，供未来的新版本识别
+WinSetTitle, ahk_id %A_ScriptHwnd%, , GhostSnap_Main_Instance
+DetectHiddenWindows, Off
+; ====================================================
+
 ; 设置标题匹配模式为 2 (包含匹配)，方便黑名单模糊写标题
 SetTitleMatchMode, 2
 
 ; ==========================================
 ; 用户配置区
 ; ==========================================
-global CurrentToolVersion := "1.1.2"
+global CurrentToolVersion := "1.1.3"
 global SettingsDir := A_ScriptDir "\GhostSnap.ini" ;配置文件路径
 
 global SnapDistance := Var_Read("SnapDistance","20","基础配置",SettingsDir,"否")    ;触发吸附的距离（像素）
@@ -70,7 +85,7 @@ global AutoRun := Var_Read("AutoRun","0","基础配置",SettingsDir,"否") ; 是
 global ShowTrayIcon := Var_Read("ShowTrayIcon","1","基础配置",SettingsDir,"否") ; 是否显示托盘图标
 
 ; --- 贴边隐藏新增配置 ---
-global AutoHideModKey := Var_Read("AutoHideModKey","CapsLock","贴边隐藏",SettingsDir,"否") ; 触发按键
+global AutoHideModKey := Var_Read("AutoHideModKey","CapsLock","贴边隐藏",SettingsDir,"否","否") ; 触发按键
 global AutoHideProtrude := Var_Read("AutoHideProtrude","8","贴边隐藏",SettingsDir,"否")  ; 边缘凸出长度
 global AutoHideShowDelay := Var_Read("AutoHideShowDelay","150","贴边隐藏",SettingsDir,"否") ;悬停显示延迟
 global AutoHideHideDelay := Var_Read("AutoHideHideDelay","350","贴边隐藏",SettingsDir,"否") ; 移出隐藏延迟
@@ -444,8 +459,8 @@ ApplyConfig:
     Var_Set(Gui_SnapToggleKey, "Shift", "SnapToggleKey", "基础配置", SettingsDir)
     Var_Set(Gui_RequireKeyToSnap, "0", "RequireKeyToSnap", "基础配置", SettingsDir)
 
-    Var_Set(Gui_DragModKey, "LWin", "DragModKey", "基础配置", SettingsDir)
-    Var_Set(Gui_DragDirectKey, "XButton1", "DragDirectKey", "基础配置", SettingsDir)
+    Var_Set(Gui_DragModKey, "", "DragModKey", "基础配置", SettingsDir)
+    Var_Set(Gui_DragDirectKey, "", "DragDirectKey", "基础配置", SettingsDir)
     Var_Set(Gui_Chaining, "1", "EnableChaining", "基础配置", SettingsDir)
     Var_Set(Gui_ChainModKey, "Ctrl", "ChainModKey", "基础配置", SettingsDir)
     Var_Set(Gui_Blacklist, defaultBlacklist, "Blacklist", "基础配置", SettingsDir)
@@ -457,7 +472,7 @@ ApplyConfig:
     Var_Set(Gui_ShowTrayIcon, "1", "ShowTrayIcon", "基础配置", SettingsDir)
 
     ; 保存贴边隐藏配置
-    Var_Set(Gui_AutoHideModKey, "CapsLock", "AutoHideModKey", "贴边隐藏", SettingsDir)
+    Var_Set(Gui_AutoHideModKey, "", "AutoHideModKey", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AutoHideProtrude, "8", "AutoHideProtrude", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AutoHideShowDelay, "150", "AutoHideShowDelay", "贴边隐藏", SettingsDir)
     Var_Set(Gui_AutoHideHideDelay, "350", "AutoHideHideDelay", "贴边隐藏", SettingsDir)
@@ -1348,24 +1363,24 @@ AutoHideTracker:
                     info.leaveTime := 0
                     info.hoverTime := 0
 
-                    ; 【智能兼容】动态检测当前显示器的任务栏位置，只对无任务栏的一侧强制置顶
+                    ; 1. 先执行隐藏动画。如果用户刚刚激活了其他窗口，它能在背后平滑隐藏，避免置顶跳闪
+                    DoAnimateWindow(hw, info.shownX, info.shownY, info.hiddenX, info.hiddenY, info.w, info.h)
+
+                    ; 2. 动画完全结束后，再将边缘置顶，保证后续能正常悬停触发
                     tbEdge := GetTaskbarEdgeByPos(info.shownX + info.w/2, info.shownY + info.h/2)
                     if (AutoHideTopmost || info.edge != tbEdge)
                         WinSet, Topmost, On, ahk_id %hw%
                     else if (!info.origTopmost)
                         WinSet, Topmost, Off, ahk_id %hw%
 
-                    ; --- 失去焦点逻辑处理 ---
+                    ; 3. 失去焦点逻辑处理（延迟到最后交接焦点更平滑）
                     if (AutoHideFocus && WinActive("ahk_id " hw)) {
-                        ; 尝试将焦点平滑移交给当前鼠标指向的其他窗口，否则降级回桌面
                         MouseGetPos,,, underHwnd
                         if (underHwnd && underHwnd != hw)
                             WinActivate, ahk_id %underHwnd%
                         else
                             WinActivate, ahk_class Progman
                     }
-
-                    DoAnimateWindow(hw, info.shownX, info.shownY, info.hiddenX, info.hiddenY, info.w, info.h)
                 }
             } else {
                 info.leaveTime := 0
