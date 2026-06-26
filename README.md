@@ -4,6 +4,8 @@
 <img width="1252" height="768" alt="功能演示" src="https://github.com/user-attachments/assets/c4029ab2-5631-4ddc-b658-bb838dbfbdbf" />
 <img width="1162" height="856" alt="功能演示3" src="https://github.com/user-attachments/assets/1c861fdf-b90e-4162-bc46-b3f44aec81a6" />
 <img width="1250" height="816" alt="PixPin exe_2026-06-16_21-40-24" src="https://github.com/user-attachments/assets/615ec393-bcc3-4548-9aa8-c9d7ae3cb7d5" />
+<img width="1164" height="894" alt="功能演示5" src="https://github.com/user-attachments/assets/8d4a380d-0288-4950-b068-7cdced652a4f" />
+<img width="1914" height="1001" alt="功能演示4" src="https://github.com/user-attachments/assets/d3df8030-4be5-49b3-8dd6-ddcd18ed4b58" />
 
 ---
 
