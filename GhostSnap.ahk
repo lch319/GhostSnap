@@ -1,4 +1,4 @@
-; 编译exe文件信息及版本号设置
+﻿; 编译exe文件信息及版本号设置
 global 当前工具版本:="1.2.1"                                                 ;设置版本号
 ;@Ahk2Exe-Obey U_bits, = "%A_PtrSize%>4" ? "-64bit" : "-32bit"       ;判断位数
 ;@Ahk2Exe-Let U_version = 1.2.1                                      ;读取版本号以编译
@@ -117,8 +117,13 @@ global AutoHideAnimSteps := Var_Read("AutoHideAnimSteps","5","贴边隐藏",Sett
 global AutoHideAnimSleep := Var_Read("AutoHideAnimSleep","8","贴边隐藏",SettingsDir,"否")                     ;贴边隐藏动画每帧延迟
 global HiddenWindows := {}                                                                                   ;用于存储正在贴边隐藏的窗口信息字典
 global wasHiddenHwnd := 0                                                                                    ;用于存储被拖拽出的贴边隐藏窗口ID
+global wasHiddenRuleKey := ""                                                                                ;用于存储被拖出贴边窗口对应的记忆键
 global EnableAutoHideMemory := Var_Read("EnableAutoHideMemory","1","贴边隐藏",SettingsDir,"否")                 ;是否自动记忆并恢复窗口贴边隐藏
 global PendingRestoreHwnds := {}                                                                              ;待处理贴边恢复的新窗口队列
+global AutoHideMemoryRules := {}                                                                              ;贴边记忆规则内存缓存
+global AutoHideMemMenuMap := {}                                                                               ;托盘贴边记忆菜单项映射
+global AutoHideHookRegistered := false                                                                        ;ShellHook是否已注册
+global ShellHookMsg := 0                                                                                      ;ShellHook系统消息ID
 
 ; --- 自绘菜单配置 ---
 global MenuGdipTheme := Var_Read("MenuGdipTheme","Light","自绘菜单",SettingsDir,"否")                         ; 1. 主题 (Light/Dark)
@@ -199,6 +204,10 @@ Menu, Tray, Add, 隐藏窗口列表, :HiddenWinSubMenu
 Menu, ClickThroughSubMenu, Add, (无记录), DoNothing
 Menu, ClickThroughSubMenu, Disable, (无记录)
 Menu, Tray, Add, 穿透窗口列表, :ClickThroughSubMenu
+
+Menu, AutoHideMemSubMenu, Add, (无记录), DoNothing
+Menu, AutoHideMemSubMenu, Disable, (无记录)
+Menu, Tray, Add, 贴边记忆列表, :AutoHideMemSubMenu
 
 Menu, Tray, Add, 重载脚本, ReloadApp
 Menu, Tray, Add, 退出程序, ExitAppRoutine
@@ -301,12 +310,9 @@ if (CurrentResizeModKey != "")
     Hotkey, %CurrentResizeModKey% & LButton, DoResizeDrag, On, UseErrorLevel
 
 ; --- 窗口生命周期监听：实现贴边隐藏自动记忆与恢复 ---
-if (EnableAutoHideMemory) {
-    DllCall("RegisterShellHookWindow", "Ptr", A_ScriptHwnd)
-    global ShellHookMsg := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
-    OnMessage(ShellHookMsg, "ShellMessage")
-    SetTimer, InitRestoreAutoHideWindows, -800
-}
+LoadAutoHideMemoryRules()
+Gosub, UpdateAutoHideMemMenu
+SyncAutoHideMemoryHook(true)
 
 OnExit("Cleanup")
 ; ==========================================
@@ -969,6 +975,7 @@ ApplyConfig:
     Var_Set(Gui_AutoHideFullscreen, "1", "AutoHideFullscreenHide", "贴边隐藏", SettingsDir)
     Var_Set(Gui_EnableAutoHideMemory, "1", "EnableAutoHideMemory", "贴边隐藏", SettingsDir)
     EnableAutoHideMemory := Gui_EnableAutoHideMemory
+    SyncAutoHideMemoryHook(false)
 
     Var_Set(Gui_MenuStyle, "2", "MenuStyle", "基础配置", SettingsDir)
     MenuStyle := Gui_MenuStyle
@@ -1100,8 +1107,22 @@ SettingsGuiClose:
 return
 
 ClearAutoHideMemory:
-    IniDelete, %SettingsDir%, 贴边记忆
+    ClearAllAutoHideMemory(false)
     MsgBox, 64, 提示, 已清空所有保存的窗口贴边隐藏记忆！
+return
+
+ClearAutoHideMemoryTray:
+    ClearAllAutoHideMemory(true)
+    ttip("已清空所有贴边记忆并释放隐藏窗口", "1500")
+return
+
+RemoveAutoHideMemFromTray:
+    if (AutoHideMemMenuMap.HasKey(A_ThisMenuItem)) {
+        targetRuleKey := AutoHideMemMenuMap[A_ThisMenuItem]
+        RemoveAutoHideRule(0, targetRuleKey)
+        ReleaseHiddenWindowsByRuleKey(targetRuleKey)
+        ttip("已移除贴边记忆: " . targetRuleKey, "1500")
+    }
 return
 
 SyncMenuHotkey:
@@ -1147,8 +1168,9 @@ Cleanup() {
 
     DllCall("UnhookWinEvent", "Ptr", hookStart)
     DllCall("UnhookWinEvent", "Ptr", hookEnd)
-    if (EnableAutoHideMemory) {
+    if (AutoHideHookRegistered) {
         DllCall("DeregisterShellHookWindow", "Ptr", A_ScriptHwnd)
+        AutoHideHookRegistered := false
     }
     Gdip_Shutdown(pToken) ; 【新增】脚本退出时统一释放 GDI+
 }
@@ -1315,8 +1337,9 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
         return
 
     ; --- 若当前窗口处于贴边隐藏状态，处理调整大小和拖出 ---
+    wasHiddenRuleKey := ""
     global HiddenWindows
-    global wasHiddenHwnd
+    global wasHiddenHwnd, wasHiddenRuleKey
     if (HiddenWindows.HasKey(hwnd)) {
         CoordMode, Mouse, Screen
         MouseGetPos, mX, mY
@@ -1333,6 +1356,7 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
         } else {
             ; 拖动标题栏等，解除隐藏，标记记忆变量
             wasHiddenHwnd := hwnd
+            wasHiddenRuleKey := HiddenWindows[hwnd].ruleKey
             if (!HiddenWindows[hwnd].origTopmost)
                 WinSet, Topmost, Off, ahk_id %hwnd%
             HiddenWindows.Delete(hwnd)
@@ -1350,6 +1374,12 @@ OnMoveStart(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEv
 
     if (isMoving)
         SetTimer, TrackMove, 15
+    else if (EnableAutoHideMemory && wasHiddenHwnd) {
+        RemoveAutoHideRule(wasHiddenHwnd, wasHiddenRuleKey)
+        wasHiddenHwnd := 0
+        wasHiddenRuleKey := ""
+        movingHwnd := 0
+    }
 }
 
 OnMoveEnd(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEventTime) {
@@ -1388,6 +1418,8 @@ OnMoveEnd(hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEven
         else if (edge == "Right")
             info.hiddenX := sX + realW - AutoHideProtrude
 
+        if (EnableAutoHideMemory)
+            SaveAutoHideRule(hwnd, edge, sX, sY, sW, sH)
         return ; 调整大小直接返回，不触发后续常规吸附计算
     }
 
@@ -1412,6 +1444,8 @@ DoDirectDrag:
 return
 
 StartManualDrag:
+    if (isMoving)
+        return
     CoordMode, Mouse, Screen
     MouseGetPos, mX, mY, hoverHwnd
 
@@ -1439,10 +1473,12 @@ StartManualDrag:
     }
 
     ; --- 解除被拖拽窗口的隐藏状态 ---
+    wasHiddenRuleKey := ""
     global HiddenWindows
-    global wasHiddenHwnd
+    global wasHiddenHwnd, wasHiddenRuleKey
     if (HiddenWindows.HasKey(hoverHwnd)) {
         wasHiddenHwnd := hoverHwnd
+        wasHiddenRuleKey := HiddenWindows[hoverHwnd].ruleKey
         if (!HiddenWindows[hoverHwnd].origTopmost)
             WinSet, Topmost, Off, ahk_id %hoverHwnd%
         HiddenWindows.Delete(hoverHwnd)
@@ -1464,6 +1500,12 @@ StartManualDrag:
 
     if (isMoving)
         SetTimer, TrackMove, 15
+    else if (EnableAutoHideMemory && wasHiddenHwnd) {
+        RemoveAutoHideRule(wasHiddenHwnd, wasHiddenRuleKey)
+        wasHiddenHwnd := 0
+        wasHiddenRuleKey := ""
+        movingHwnd := 0
+    }
 return
 
 TrackMove:
@@ -1837,7 +1879,8 @@ ForceEndMove:
                     , w: finalW, h: finalH
                     , realW: realFinalW, realH: realFinalH
                     , isFullyHidden: false
-                    , isResizing: false }
+                    , isResizing: false
+                    , ruleKey: GetWindowRuleKey(movingHwnd) }
 
                 ; 智能兼容：动态检测当前显示器的任务栏位置，只对无任务栏的一侧强制置顶
                 tbEdge := GetTaskbarEdgeByPos(finalX + finalW/2, finalY + finalH/2)
@@ -1858,10 +1901,12 @@ ForceEndMove:
         willSnap := false
     }
 
-    wasHiddenHwnd := 0
+    ; 在清零前检测是否已从贴边拖离取消隐藏，若已脱离则同步清除记忆规则
     if (EnableAutoHideMemory && wasHiddenHwnd && !HiddenWindows.HasKey(wasHiddenHwnd)) {
-        RemoveAutoHideRule(wasHiddenHwnd)
+        RemoveAutoHideRule(wasHiddenHwnd, wasHiddenRuleKey)
     }
+    wasHiddenHwnd := 0
+    wasHiddenRuleKey := ""
     movingHwnd := 0
 return
 
@@ -1905,11 +1950,13 @@ AutoHideTracker:
             continue
         }
 
-        ; 如果窗口被最大化，则退出贴边隐藏机制
+        ; 如果窗口被最大化，则退出贴边隐藏机制并移除贴边记忆
         WinGet, minMax, MinMax, ahk_id %hw%
         if (minMax = 1) {
             if (!info.origTopmost)
                 WinSet, Topmost, Off, ahk_id %hw%
+            if (EnableAutoHideMemory)
+                RemoveAutoHideRule(hw, info.ruleKey)
             toDelete.Push(hw)
             continue
         }
@@ -2202,10 +2249,12 @@ DoResizeDrag:
     }
 
     ; 临时解除贴边隐藏判定 (复用原有的防冲突逻辑)
+    wasHiddenRuleKey := ""
     global HiddenWindows
-    global wasHiddenHwnd
+    global wasHiddenHwnd, wasHiddenRuleKey
     if (HiddenWindows.HasKey(hoverHwnd)) {
         wasHiddenHwnd := hoverHwnd
+        wasHiddenRuleKey := HiddenWindows[hoverHwnd].ruleKey
         if (!HiddenWindows[hoverHwnd].origTopmost)
             WinSet, Topmost, Off, ahk_id %hoverHwnd%
         HiddenWindows.Delete(hoverHwnd)
@@ -2236,6 +2285,10 @@ DoResizeDrag:
     resizeStartY := mY
     resizeHwnd := hoverHwnd
     isResizingWin := true
+    if (EnableAutoHideMemory && wasHiddenHwnd)
+        RemoveAutoHideRule(wasHiddenHwnd, wasHiddenRuleKey)
+    wasHiddenHwnd := 0
+    wasHiddenRuleKey := ""
 
     SetTimer, TrackResize, 15
 return
@@ -3916,7 +3969,7 @@ MoveWindow_xy(WinTitle, Pos) {
 
 ;[强制贴边隐藏当前窗口]
 ForceEdgeHide_xy(edge, WinTitle:="A") {
-    global HiddenWindows, AutoHideProtrude, GhostHwnd, AutoHideTopmost
+    global HiddenWindows, AutoHideProtrude, GhostHwnd, AutoHideTopmost, EnableAutoHideMemory
 
     targetHwnd := WinExist(WinTitle)
     ; 排除无效窗口或自身的幽灵窗口
@@ -3992,7 +4045,8 @@ ForceEdgeHide_xy(edge, WinTitle:="A") {
         , w: sW, h: sH
         , realW: realW, realH: realH
         , isFullyHidden: false
-        , isResizing: false }
+        , isResizing: false
+        , ruleKey: GetWindowRuleKey(targetHwnd) }
 
     ; 智能兼容：动态检测当前显示器的任务栏位置，处理置顶逻辑
     tbEdge := GetTaskbarEdgeByPos(shownX + sW/2, shownY + sH/2)
@@ -4533,13 +4587,138 @@ win_clickthrough_xy(WinTitle:="A"){
 ; 贴边隐藏记忆模块 (持久化与新窗口/程序自启动自动恢复贴边)
 ; ===========================================================
 
+GetWindowRuleKey(hwnd) {
+    if (!hwnd)
+        return ""
+    prevDetect := A_DetectHiddenWindows
+    DetectHiddenWindows, On
+    WinGet, pName, ProcessName, ahk_id %hwnd%
+    WinGetClass, wClass, ahk_id %hwnd%
+    DetectHiddenWindows, %prevDetect%
+    if (pName != "" && wClass != "")
+        return pName . "|" . wClass
+    return ""
+}
+
+LoadAutoHideMemoryRules() {
+    global SettingsDir, AutoHideMemoryRules
+    AutoHideMemoryRules := {}
+    IniRead, memSection, %SettingsDir%, 贴边记忆
+    if (memSection == "" || memSection == "ERROR")
+        return
+    Loop, Parse, memSection, `n, `r
+    {
+        line := Trim(A_LoopField)
+        if (line == "")
+            continue
+        eqPos := InStr(line, "=")
+        if (eqPos <= 1)
+            continue
+        ruleKey := SubStr(line, 1, eqPos - 1)
+        ruleVal := SubStr(line, eqPos + 1)
+        if (ruleKey != "" && ruleVal != "")
+            AutoHideMemoryRules[ruleKey] := ruleVal
+    }
+}
+
+HasAutoHideMemoryRules() {
+    global AutoHideMemoryRules
+    For k, _ in AutoHideMemoryRules
+        return true
+    return false
+}
+
+SyncAutoHideMemoryHook(doInitRestore := false) {
+    global EnableAutoHideMemory, AutoHideHookRegistered, ShellHookMsg, PendingRestoreHwnds
+    if (EnableAutoHideMemory) {
+        if (!AutoHideHookRegistered) {
+            DllCall("RegisterShellHookWindow", "Ptr", A_ScriptHwnd)
+            if (!ShellHookMsg)
+                ShellHookMsg := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
+            OnMessage(ShellHookMsg, "ShellMessage")
+            AutoHideHookRegistered := true
+        }
+        if (doInitRestore)
+            SetTimer, InitRestoreAutoHideWindows, -800
+    } else {
+        if (AutoHideHookRegistered) {
+            if (ShellHookMsg)
+                OnMessage(ShellHookMsg, "")
+            DllCall("DeregisterShellHookWindow", "Ptr", A_ScriptHwnd)
+            AutoHideHookRegistered := false
+        }
+        PendingRestoreHwnds := {}
+    }
+}
+
+UpdateAutoHideMemMenu:
+    AutoHideMemMenuMap := {}
+    Menu, AutoHideMemSubMenu, DeleteAll
+    hasRule := false
+    For ruleKey, ruleVal in AutoHideMemoryRules {
+        parts := StrSplit(ruleVal, ",")
+        edge := (parts.Length() >= 1) ? parts[1] : ""
+        edgeLabel := (edge == "Top") ? "上" : ((edge == "Bottom") ? "下" : ((edge == "Left") ? "左" : ((edge == "Right") ? "右" : edge)))
+        pParts := StrSplit(ruleKey, "|")
+        dispName := (pParts.Length() >= 1) ? pParts[1] : ruleKey
+        label := dispName . " [" . edgeLabel . "贴边] (" . ruleKey . ")"
+        AutoHideMemMenuMap[label] := ruleKey
+        Menu, AutoHideMemSubMenu, Add, %label%, RemoveAutoHideMemFromTray
+        hasRule := true
+    }
+    if (!hasRule) {
+        Menu, AutoHideMemSubMenu, Add, (无记录), DoNothing
+        Menu, AutoHideMemSubMenu, Disable, (无记录)
+    } else {
+        Menu, AutoHideMemSubMenu, Add
+        Menu, AutoHideMemSubMenu, Add, 清空所有贴边记忆, ClearAutoHideMemoryTray
+    }
+return
+
+ReleaseHiddenWindowsByRuleKey(targetRuleKey := "") {
+    global HiddenWindows
+    toRelease := []
+    For hw, info in HiddenWindows {
+        rk := (info.ruleKey != "") ? info.ruleKey : GetWindowRuleKey(hw)
+        if (targetRuleKey == "" || rk == targetRuleKey)
+            toRelease.Push(hw)
+    }
+    For _, hw in toRelease {
+        info := HiddenWindows[hw]
+        if (WinExist("ahk_id " hw)) {
+            if (info.state == "hidden")
+                DoAnimateWindow(hw, info.hiddenX, info.hiddenY, info.shownX, info.shownY, info.w, info.h)
+            else
+                WinMove, ahk_id %hw%, , % info.shownX, % info.shownY, % info.w, % info.h
+            if (!info.origTopmost)
+                WinSet, Topmost, Off, ahk_id %hw%
+        }
+        HiddenWindows.Delete(hw)
+    }
+}
+
+ClearAllAutoHideMemory(releaseHidden := false) {
+    global SettingsDir, AutoHideMemoryRules, PendingRestoreHwnds
+    IniDelete, %SettingsDir%, 贴边记忆
+    AutoHideMemoryRules := {}
+    PendingRestoreHwnds := {}
+    if (releaseHidden)
+        ReleaseHiddenWindowsByRuleKey("")
+    Gosub, UpdateAutoHideMemMenu
+}
+
 ShellMessage(wParam, lParam) {
-    global EnableAutoHideMemory, PendingRestoreHwnds
-    if (!EnableAutoHideMemory)
+    global EnableAutoHideMemory, PendingRestoreHwnds, HiddenWindows, isMoving, movingHwnd, isResizingWin, resizeHwnd, wasHiddenHwnd
+    if (!EnableAutoHideMemory || !HasAutoHideMemoryRules())
         return
     ; 1: HSHELL_WINDOWCREATED (新窗口创建), 6: HSHELL_REDRAW (窗口重绘就绪)
     if (wParam == 1 || wParam == 6) {
-        if (lParam) {
+        if (!lParam)
+            return
+        ; 正在被用户拖拽/缩放/脱手取消的窗口绝不抢占拉回
+        if (HiddenWindows.HasKey(lParam) || (isMoving && lParam == movingHwnd) || (isResizingWin && lParam == resizeHwnd) || lParam == wasHiddenHwnd)
+            return
+        if (!PendingRestoreHwnds.HasKey(lParam)) {
             PendingRestoreHwnds[lParam] := 1
             SetTimer, ProcessPendingRestoreHwnds, -300
         }
@@ -4548,28 +4727,31 @@ ShellMessage(wParam, lParam) {
 
 ProcessPendingRestoreHwnds:
     global PendingRestoreHwnds, EnableAutoHideMemory
-    if (!EnableAutoHideMemory)
+    if (!EnableAutoHideMemory || !HasAutoHideMemoryRules()) {
+        PendingRestoreHwnds := {}
         return
+    }
     hwndsToCheck := []
     For hw, attempts in PendingRestoreHwnds
         hwndsToCheck.Push({hwnd: hw, attempt: attempts})
     PendingRestoreHwnds := {}
 
+    hasRetry := false
     For _, item in hwndsToCheck {
         hw := item.hwnd
-        if (!WinExist("ahk_id " hw))
-            continue
-        if (!ApplyAutoHideFromMemory(hw)) {
-            ; 某些大型软件界面异步绘制，收到通知时尺寸或可见性尚未完全就绪，延时再试一次
-            if (item.attempt < 2) {
-                PendingRestoreHwnds[hw] := item.attempt + 1
-                SetTimer, ProcessPendingRestoreHwnds, -500
-            }
+        res := ApplyAutoHideFromMemory(hw)
+        if (res == "retry" && item.attempt < 3) {
+            PendingRestoreHwnds[hw] := item.attempt + 1
+            hasRetry := true
         }
     }
+    if (hasRetry)
+        SetTimer, ProcessPendingRestoreHwnds, -500
 return
 
 InitRestoreAutoHideWindows:
+    if (!EnableAutoHideMemory || !HasAutoHideMemoryRules())
+        return
     DetectHiddenWindows, Off
     WinGet, winList, List
     Loop, %winList% {
@@ -4579,87 +4761,138 @@ InitRestoreAutoHideWindows:
 return
 
 SaveAutoHideRule(hwnd, edge, shownX, shownY, w, h) {
-    global SettingsDir
-    if (!hwnd || !WinExist("ahk_id " hwnd))
+    global SettingsDir, AutoHideMemoryRules
+    ruleKey := GetWindowRuleKey(hwnd)
+    if (ruleKey == "")
         return
 
-    WinGet, pName, ProcessName, ahk_id %hwnd%
-    WinGetClass, wClass, ahk_id %hwnd%
-    if (pName == "" || wClass == "")
-        return
-
-    ruleKey := pName . "|" . wClass
     ruleVal := edge . "," . shownX . "," . shownY . "," . w . "," . h
     IniWrite, %ruleVal%, %SettingsDir%, 贴边记忆, %ruleKey%
+    AutoHideMemoryRules[ruleKey] := ruleVal
+    Gosub, UpdateAutoHideMemMenu
 }
 
-RemoveAutoHideRule(hwnd) {
-    global SettingsDir
-    if (!hwnd)
+RemoveAutoHideRule(hwnd, ruleKeyOverride := "") {
+    global SettingsDir, AutoHideMemoryRules
+    ruleKey := (ruleKeyOverride != "") ? ruleKeyOverride : GetWindowRuleKey(hwnd)
+    if (ruleKey == "")
         return
 
-    WinGet, pName, ProcessName, ahk_id %hwnd%
-    WinGetClass, wClass, ahk_id %hwnd%
-    if (pName != "" && wClass != "") {
-        ruleKey := pName . "|" . wClass
-        IniDelete, %SettingsDir%, 贴边记忆, %ruleKey%
+    hadKey := AutoHideMemoryRules.HasKey(ruleKey)
+    if (hadKey)
+        AutoHideMemoryRules.Delete(ruleKey)
+    IniDelete, %SettingsDir%, 贴边记忆, %ruleKey%
+    if (hadKey)
+        Gosub, UpdateAutoHideMemMenu
+}
+
+HasHiddenRuleInUse(ruleKey, excludeHwnd := 0) {
+    global HiddenWindows
+    For existingHw, info in HiddenWindows {
+        if (existingHw != excludeHwnd && WinExist("ahk_id " existingHw)) {
+            rk := (info.ruleKey != "") ? info.ruleKey : GetWindowRuleKey(existingHw)
+            if (rk == ruleKey)
+                return true
+        }
     }
+    return false
+}
+
+IsPointOnAnyMonitor(px, py) {
+    SysGet, monCount, MonitorCount
+    Loop, %monCount% {
+        SysGet, mon, MonitorWorkArea, %A_Index%
+        if (px >= monLeft && px <= monRight && py >= monTop && py <= monBottom)
+            return true
+    }
+    return false
 }
 
 ApplyAutoHideFromMemory(hwnd) {
-    global SettingsDir, EnableAutoHideMemory, HiddenWindows, GhostHwnd, Blacklist
-    if (!EnableAutoHideMemory || !hwnd || !WinExist("ahk_id " hwnd))
-        return false
+    global EnableAutoHideMemory, HiddenWindows, GhostHwnd, AutoHideMemoryRules
+    global isMoving, movingHwnd, isResizingWin, resizeHwnd, wasHiddenHwnd
+    if (!EnableAutoHideMemory || !hwnd)
+        return "skip"
 
     if (hwnd == GhostHwnd || hwnd == A_ScriptHwnd)
-        return false
+        return "skip"
 
     if (HiddenWindows.HasKey(hwnd))
-        return false
+        return "skip"
 
-    if (Blacklist != "" && CheckWindowInList(hwnd, Blacklist))
-        return false
+    if ((isMoving && hwnd == movingHwnd) || (isResizingWin && hwnd == resizeHwnd) || hwnd == wasHiddenHwnd)
+        return "skip"
 
-    WinGet, style, Style, ahk_id %hwnd%
-    ; 排除不可见窗口与子窗口
-    if (!(style & 0x10000000) || (style & 0x40000000))
-        return false
-
-    WinGet, exStyle, ExStyle, ahk_id %hwnd%
-    ; 排除工具栏浮窗
-    if (exStyle & 0x80)
-        return false
-
-    WinGet, minMax, MinMax, ahk_id %hwnd%
-    if (minMax == -1)
-        return false
-
+    prevDetect := A_DetectHiddenWindows
+    DetectHiddenWindows, On
+    exists := WinExist("ahk_id " hwnd)
+    if (!exists) {
+        DetectHiddenWindows, %prevDetect%
+        return "skip"
+    }
     WinGet, pName, ProcessName, ahk_id %hwnd%
     WinGetClass, wClass, ahk_id %hwnd%
+    WinGet, style, Style, ahk_id %hwnd%
+    WinGet, exStyle, ExStyle, ahk_id %hwnd%
+    ownerHwnd := DllCall("GetWindow", "Ptr", hwnd, "UInt", 4, "Ptr") ; GW_OWNER
+    DetectHiddenWindows, %prevDetect%
+
     if (pName == "" || wClass == "")
-        return false
+        return "skip"
 
     ruleKey := pName . "|" . wClass
-    IniRead, ruleVal, %SettingsDir%, 贴边记忆, %ruleKey%, % A_Space
-    if (ruleVal == "" || ruleVal == A_Space) {
-        IniRead, ruleVal, %SettingsDir%, 贴边记忆, %pName%, % A_Space
-    }
-    if (ruleVal == "" || ruleVal == A_Space)
-        return false
+    ruleVal := ""
+    if (AutoHideMemoryRules.HasKey(ruleKey))
+        ruleVal := AutoHideMemoryRules[ruleKey]
+    else if (AutoHideMemoryRules.HasKey(pName))
+        ruleVal := AutoHideMemoryRules[pName]
+
+    if (ruleVal == "")
+        return "none"
+
+    ; 排除有所属父窗口的弹窗/模态框、子窗口、禁用窗、工具浮窗、透明穿透层
+    if (ownerHwnd || (style & 0x40000000) || (style & 0x08000000) || (exStyle & 0x80) || (exStyle & 0x20) || (exStyle & 0x08000000))
+        return "skip"
+
+    ; 同一程序/类名若已有激活中的贴边窗口，跳过次级窗口（如 Steam 好友列表/弹窗）以免冲突
+    if (HasHiddenRuleInUse(ruleKey, hwnd))
+        return "skip"
+
+    ; 若窗口尚未显示、标题未就绪或尺寸过小（初始化异步窗口），等待重试
+    if (!(style & 0x10000000))
+        return "retry"
+
+    if (IsBlacklisted(hwnd))
+        return "skip"
+
+    WinGet, minMax, MinMax, ahk_id %hwnd%
+    if (minMax != 0)
+        return "skip"
+
+    WinGetTitle, wTitle, ahk_id %hwnd%
+    if (wTitle == "")
+        return "retry"
+
+    WinGetPos, curX, curY, curW, curH, ahk_id %hwnd%
+    if (curW < 50 || curH < 50)
+        return "retry"
 
     parts := StrSplit(ruleVal, ",")
     if (parts.Length() < 5)
-        return false
+        return "skip"
 
     edge := parts[1]
     sX := parts[2], sY := parts[3], sW := parts[4], sH := parts[5]
 
-    ; 还原到先前展开记录的尺寸和坐标
+    ; 还原到先前展开记录的尺寸和坐标（若旧显示器已移除则不强行移到屏外）
     if (sW > 50 && sH > 50) {
-        WinMove, ahk_id %hwnd%, , %sX%, %sY%, %sW%, %sH%
+        if (IsPointOnAnyMonitor(sX + sW / 2, sY + sH / 2))
+            WinMove, ahk_id %hwnd%, , %sX%, %sY%, %sW%, %sH%
+        else
+            WinMove, ahk_id %hwnd%, , , , %sW%, %sH%
     }
 
     ; 直接应用贴边隐藏收缩
     ForceEdgeHide_xy(edge, "ahk_id " hwnd)
-    return true
+    return "applied"
 }
